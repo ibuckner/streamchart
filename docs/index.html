@@ -1,0 +1,32 @@
+<!DOCTYPE xhtml>
+<html xmlns="https://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="content-Type" content="text/html; charset=utf-8" />
+	<title>Steam chart test</title>
+	<link href="favicon.ico" rel="shortcut icon" />
+	<link href="css/page-structure.css" rel="stylesheet" />
+	<link href="css/steamchart.css" rel="stylesheet" />
+</head>
+<body>
+	<div id="title">
+		<div class="menu-button">CHART OPTIONS</div>
+	</div>
+	<div id="chart"></div>
+
+	<aside class="menu border ready">
+		<div class="panel-row">
+			<label>Placeholder:</label>
+			<div>
+				<input id="Placeholder" type="checkbox" checked>
+				<label id="lblPlaceholder" for="Placeholder" title="Placeholder">Placeholder</label>
+			</div>
+		</div>
+	</aside>
+
+	<script src="lib/steamchart.js"></script>
+	<script src="js/app.js"></script>
+	<script type="text/javascript">
+		App().start();
+	</script>
+</body>
+</html>
