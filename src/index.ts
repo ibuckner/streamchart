@@ -1,11 +1,31 @@
-import { event, select, selectAll } from "d3-selection";
-import { scaleLinear } from "d3-scale";
-import { transition } from "d3-transition";
-import { formatNumber, measure, svg, TMargin } from "@buckneri/spline";
+import { bisector, extent } from "d3-array";
+import { axisBottom } from "d3-axis";
+import { event, mouse, select, selectAll } from "d3-selection";
+import { scaleLinear, scaleOrdinal, scaleTime } from "d3-scale";
+import { schemePaired } from "d3-scale-chromatic";
+import { area, stack, stackOffsetSilhouette } from "d3-shape";
+import { measure, svg, TMargin } from "@buckneri/spline";
+
+export type TStreamLabels = {
+  series: string[],
+  xaxis: string
+};
+
+export type TStreamSeries = {
+  label: string,
+  sum?: number,
+  values: number[]
+};
+
+export type TStream = {
+  colors?: string[],
+  labels?: TStreamLabels,
+  series: TStreamSeries[]
+};
 
 export type TStreamchartOptions = {
   container: HTMLElement,
-  data: any,
+  data: TStream[],
   margin: TMargin
 };
 
@@ -17,9 +37,17 @@ export class Streamchart {
   public rw: number = 150;
   public w: number = 200;
 
-  private _data: any;
-  private _extent: [number, number] = [0, 0]; // min/max node values
-  private _scale: any;
+  private _canvas: any;
+  private _color = scaleOrdinal(schemePaired);
+  private _data: TStream = { series: []};
+  private _extentX: [Date, Date] = [new Date(), new Date()];
+  private _extentY: [number, number] = [0, 0];
+  private _fp = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" }).format;
+  private _scaleX: any;
+  private _scaleY: any;
+  private _selectedLabel: string = "";
+  private _svg: any;
+  private _tip: any;
 
   constructor(options: TStreamchartOptions) {
     if (options.margin !== undefined) {
@@ -49,6 +77,9 @@ export class Streamchart {
    */
   public clearSelection(): Streamchart {
     selectAll(".selected").classed("selected", false);
+    selectAll(".fade").classed("fade", false);
+    select(".stream-tip").text("");
+    this._selectedLabel = "";
     return this;
   }
 
@@ -58,6 +89,19 @@ export class Streamchart {
    */
   public data(data: any): Streamchart {
     this._data = data;
+    if (this._data.colors === undefined) {
+      this._data.colors = [];
+    }
+    if (this._data.colors.length === 0 && this._data.labels) {
+      this._data.labels.series.forEach((label: string) => {
+        this._data.colors?.push(this._color(label));
+      });
+    }
+    const sum = (accumulator: number, currentValue: number) => accumulator + currentValue;
+    this._data.series.forEach(s => {
+      s.sum = s.values.map(v => v).reduce(sum);
+    });
+    this._scalingExtent();
     return this;
   }
 
@@ -73,7 +117,10 @@ export class Streamchart {
    * draws the Streamchart
    */
   public draw(): Streamchart {
-    this._drawCanvas();
+    this._drawCanvas()
+      ._drawAxes()
+      ._drawStream();
+    
     return this;
   }
 
@@ -89,11 +136,32 @@ export class Streamchart {
    * Serialise the Streamchart data
    */
   public toString(): string {
-    let dt: string = this._data.map((n: any) => `${n}`).join("\n");
+    let dt: string = this._data.series.map((n: any) => `${n}`).join("\n");
     return `data:\n${dt}`;
   }
 
   // ***** PRIVATE METHODS
+
+  private _drawAxes(): Streamchart {
+    this._canvas.append("g")
+      .attr("transform", `translate(0,${this.rh * 0.9})`)
+      .call(
+        axisBottom(this._scaleX).tickSize(-this.rh * 0.7)
+      ).select(".domain").remove();
+
+    this._canvas.append("text")
+      .attr("text-anchor", "end")
+      .attr("x", this.rw)
+      .attr("y", this.rh - 30 )
+      .text(`Time (${this._data.labels?.xaxis})`);
+    
+    this._tip = this._canvas.append("text")
+      .attr("class", "stream-tip")
+      .attr("x", 0)
+      .attr("y", (this.margin.top * 2) + 1);
+
+    return this;
+  }
 
   private _drawCanvas(): Streamchart {
     const sg: SVGElement = svg(this.container, {
@@ -107,15 +175,99 @@ export class Streamchart {
     const s = select(sg);
     s.on("click", () => this.clearSelection());
 
+    this._svg = s;
+    this._canvas = s.select(".canvas");
+
     return this;
+  }
+
+  private _drawStream(): Streamchart {
+    const id: string = (this._svg.node() as SVGElement).id;
+
+    const st = stack()
+      .offset(stackOffsetSilhouette)
+      .keys(this._data.labels?.series as string[])
+      // @ts-ignore
+      .value((d: any, key: string) => {
+        let i: number = this._data.labels?.series.indexOf(key) as number;
+        return d.values[i];
+      });
+  
+    const stackedData = st(this._data.series as any);
+    
+    const ar = area()
+      .x((d: any, i: number) => this._scaleX(new Date(d.data.label)))
+      .y0((d: any, i: number) => this._scaleY(d[0]))
+      .y1((d: any, i: number) => this._scaleY(d[1]));
+
+    let n = 0;
+    const streams = this._canvas.selectAll("path.streamchart")
+      .data(stackedData)
+      .enter()
+        .append("path")
+          .attr("id", (d: any, i: number) => `${id}_p${i}`)
+          .attr("class", "streamchart")
+          .attr("d", ar as any)
+          .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
+
+    streams
+      .on("click", () => this._streamClickHandler(event.target))
+      .on("mousemove", (d: any, i: number, n: Node[]) => this._streamMouseMoveHandler(d, i, n));
+
+    streams.append("title")
+      .text((d: any) => `${d.key}`);
+
+    return this;
+  }
+
+  private _streamClickHandler(el: Element): void {
+    event.stopPropagation();
+    this.clearSelection();
+    window.dispatchEvent(new CustomEvent("stream-selected", { detail: el }));
+    selectAll("path.streamchart")
+      .each((d: any, i: number, n: any) => {
+        if (n[i] === el) {
+          select(el).classed("selected", true);
+          this._selectedLabel = d.key;
+        } else {
+          select(n[i]).classed("fade", true);
+        }
+      });
+  }
+
+  private _streamMouseMoveHandler(d: any, i: number, nodes: any[]): void {
+    const mxy = mouse(nodes[i]);
+    const mouseDate = this._scaleX.invert(mxy[0]);
+    const dates = this._data.series.map(s => [new Date(s.label), s.sum]);
+
+    const bisect = bisector((d: any) => d[0]);
+    const m = bisect.left(dates, mouseDate);
+
+    const d0 = d[m - 1];
+    const d1 = d[m];
+    const dt: any = mouseDate - d0.data.label > d1.data.label - mouseDate ? d1 : d0;
+    const v: number = Math.abs(dt[1] - dt[0]);
+    const perc = this._fp((v / dt.data.sum));
+    this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.label})`);
   }
 
   /**
    * Calculates the chart scale
    */
   private _scaling(): Streamchart {
-    const rng: [number, number] = [0, this.rh];
-    this._scale = scaleLinear().domain(this._extent).range(rng);
+    this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]);
+    this._scaleY = scaleLinear().domain(this._extentY).range([this.rh, 0]);
+    return this;
+  }
+
+  /**
+   * Determines the minimum and maximum extent values used by scale
+   */
+  private _scalingExtent(): Streamchart {
+    let max: number | undefined = undefined;   
+    this._extentX = extent(this._data.series, (d: TStreamSeries) => new Date(d.label)) as [Date, Date];
+    this._data.series.forEach((d: TStreamSeries) => max = Math.max(max === undefined ? 0 : max, ...d.values));
+    this._extentY = [-(max === undefined ? 0 : max), max === undefined ? 0 : max];
     return this;
   }
 }

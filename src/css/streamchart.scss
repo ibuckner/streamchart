@@ -1,0 +1,26 @@
+@use "globals";
+
+path.streamchart {
+  cursor: pointer;
+  fill-opacity: 0.8;
+  transition: fill-opacity 500ms;
+}
+
+path.streamchart.fade {
+  fill-opacity: 0.2;
+}
+
+path.streamchart.selected {
+  fill-opacity: 0.85;
+  stroke: #000;
+}
+
+.stream-tip {
+  font-size: 1.2em;
+  text-anchor: start;
+  transition: opacity 500ms;
+}
+
+.tick line {
+  stroke: #b8b8b8;
+}
