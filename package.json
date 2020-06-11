@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/ibuckner/streamchart#readme",
   "dependencies": {
-    "@buckneri/spline": "^0.5.7",
+    "@buckneri/spline": "^0.6.0",
     "d3-array": "^2.4.0",
     "d3-axis": "^1.0.12",
     "d3-scale": "^3.2.1",

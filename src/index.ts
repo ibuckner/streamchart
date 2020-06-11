@@ -47,7 +47,7 @@ export class Streamchart {
   private _data: TStream = { labels: { axis: { x: "" }, series: [] }, series: []};
   private _extentX: [Date, Date] = [new Date(), new Date()];
   private _extentY: [number, number] = [0, 0];
-  private _fp = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" }).format;
+  private _fp: Intl.NumberFormat = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" });
   private _marker: any;
   private _scaleX: any;
   private _scaleY: any;
@@ -291,7 +291,7 @@ export class Streamchart {
     const t1: any = new Date(d1.data.period);
     const dt: any = mouseDate - t0 > t1 - mouseDate ? d1 : d0;
     const v: number = Math.abs(dt[1] - dt[0]);
-    const perc = this._fp((v / dt.data.sum));
+    const perc = this._fp.format((v / dt.data.sum));
     this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.period})`);
 
     this._marker.select("line")
