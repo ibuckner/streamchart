@@ -6,20 +6,25 @@ import { schemePaired } from "d3-scale-chromatic";
 import { area, stack, stackOffsetSilhouette } from "d3-shape";
 import { measure, svg, TMargin } from "@buckneri/spline";
 
+export type TStreamAxisLabel = {
+  x: string,
+  y?: string
+};
+
 export type TStreamLabels = {
   series: string[],
-  xaxis: string
+  axis: TStreamAxisLabel
 };
 
 export type TStreamSeries = {
-  label: string,
+  period: string,
   sum?: number,
   values: number[]
 };
 
 export type TStream = {
   colors?: string[],
-  labels?: TStreamLabels,
+  labels: TStreamLabels,
   series: TStreamSeries[]
 };
 
@@ -39,7 +44,7 @@ export class Streamchart {
 
   private _canvas: any;
   private _color = scaleOrdinal(schemePaired);
-  private _data: TStream = { series: []};
+  private _data: TStream = { labels: { axis: { x: "" }, series: [] }, series: []};
   private _extentX: [Date, Date] = [new Date(), new Date()];
   private _extentY: [number, number] = [0, 0];
   private _fp = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" }).format;
@@ -152,7 +157,7 @@ export class Streamchart {
       .attr("text-anchor", "end")
       .attr("x", this.rw)
       .attr("y", this.rh - 30 )
-      .text(`Time (${this._data.labels?.xaxis})`);
+      .text(`Time (${this._data.labels?.axis.x})`);
     
     this._tip = this._canvas.append("text")
       .attr("class", "stream-tip")
@@ -195,7 +200,7 @@ export class Streamchart {
     const stackedData = st(this._data.series as any);
     
     const ar = area()
-      .x((d: any, i: number) => this._scaleX(new Date(d.data.label)))
+      .x((d: any, i: number) => this._scaleX(new Date(d.data.period)))
       .y0((d: any, i: number) => this._scaleY(d[0]))
       .y1((d: any, i: number) => this._scaleY(d[1]));
 
@@ -266,7 +271,7 @@ export class Streamchart {
   private _streamMouseMoveHandler(d: any, i: number, nodes: any[]): void {
     const mxy = mouse(nodes[i]);
     const mouseDate = this._scaleX.invert(mxy[0]);
-    const dates = this._data.series.map(s => [new Date(s.label), s.sum]);
+    const dates = this._data.series.map(s => [new Date(s.period), s.sum]);
 
     const bisect = bisector((d: any) => d[0]);
     let m = bisect.left(dates, mouseDate);
@@ -276,12 +281,12 @@ export class Streamchart {
 
     const d0 = d[m - 1];
     const d1 = d[m];
-    const t0: any = new Date(d0.data.label);
-    const t1: any = new Date(d1.data.label);
+    const t0: any = new Date(d0.data.period);
+    const t1: any = new Date(d1.data.period);
     const dt: any = mouseDate - t0 > t1 - mouseDate ? d1 : d0;
     const v: number = Math.abs(dt[1] - dt[0]);
     const perc = this._fp((v / dt.data.sum));
-    this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.label})`);
+    this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.period})`);
 
     this._marker.select("line")
       .attr("x1", mxy[0]-1)
@@ -314,7 +319,7 @@ export class Streamchart {
    */
   private _scalingExtent(): Streamchart {
     let max: number | undefined = undefined;   
-    this._extentX = extent(this._data.series, (d: TStreamSeries) => new Date(d.label)) as [Date, Date];
+    this._extentX = extent(this._data.series, (d: TStreamSeries) => new Date(d.period)) as [Date, Date];
     this._data.series.forEach((d: TStreamSeries) => max = Math.max(max === undefined ? 0 : max, ...d.values));
     this._extentY = [-(max === undefined ? 0 : max), max === undefined ? 0 : max];
     return this;

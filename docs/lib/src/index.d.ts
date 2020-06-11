@@ -1,16 +1,20 @@
 import { TMargin } from "@buckneri/spline";
+export declare type TStreamAxisLabel = {
+    x: string;
+    y?: string;
+};
 export declare type TStreamLabels = {
     series: string[];
-    xaxis: string;
+    axis: TStreamAxisLabel;
 };
 export declare type TStreamSeries = {
-    label: string;
+    period: string;
     sum?: number;
     values: number[];
 };
 export declare type TStream = {
     colors?: string[];
-    labels?: TStreamLabels;
+    labels: TStreamLabels;
     series: TStreamSeries[];
 };
 export declare type TStreamchartOptions = {

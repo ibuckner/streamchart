@@ -4735,7 +4735,7 @@ var chart = (function (exports) {
           this.rw = 150;
           this.w = 200;
           this._color = ordinal(schemePaired);
-          this._data = { series: [] };
+          this._data = { labels: { axis: { x: "" }, series: [] }, series: [] };
           this._extentX = [new Date(), new Date()];
           this._extentY = [0, 0];
           this._fp = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" }).format;
@@ -4829,7 +4829,7 @@ var chart = (function (exports) {
               .attr("text-anchor", "end")
               .attr("x", this.rw)
               .attr("y", this.rh - 30)
-              .text(`Time (${(_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.xaxis})`);
+              .text(`Time (${(_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.axis.x})`);
           this._tip = this._canvas.append("text")
               .attr("class", "stream-tip")
               .attr("x", 0)
@@ -4864,7 +4864,7 @@ var chart = (function (exports) {
           });
           const stackedData = st(this._data.series);
           const ar = area()
-              .x((d, i) => this._scaleX(new Date(d.data.label)))
+              .x((d, i) => this._scaleX(new Date(d.data.period)))
               .y0((d, i) => this._scaleY(d[0]))
               .y1((d, i) => this._scaleY(d[1]));
           let n = 0;
@@ -4924,7 +4924,7 @@ var chart = (function (exports) {
       _streamMouseMoveHandler(d, i, nodes) {
           const mxy = mouse(nodes[i]);
           const mouseDate = this._scaleX.invert(mxy[0]);
-          const dates = this._data.series.map(s => [new Date(s.label), s.sum]);
+          const dates = this._data.series.map(s => [new Date(s.period), s.sum]);
           const bisect = bisector((d) => d[0]);
           let m = bisect.left(dates, mouseDate);
           if (m === 0) {
@@ -4932,12 +4932,12 @@ var chart = (function (exports) {
           }
           const d0 = d[m - 1];
           const d1 = d[m];
-          const t0 = new Date(d0.data.label);
-          const t1 = new Date(d1.data.label);
+          const t0 = new Date(d0.data.period);
+          const t1 = new Date(d1.data.period);
           const dt = mouseDate - t0 > t1 - mouseDate ? d1 : d0;
           const v = Math.abs(dt[1] - dt[0]);
           const perc = this._fp((v / dt.data.sum));
-          this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.label})`);
+          this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.period})`);
           this._marker.select("line")
               .attr("x1", mxy[0] - 1)
               .attr("x2", mxy[0] - 1)
@@ -4965,7 +4965,7 @@ var chart = (function (exports) {
        */
       _scalingExtent() {
           let max = undefined;
-          this._extentX = extent(this._data.series, (d) => new Date(d.label));
+          this._extentX = extent(this._data.series, (d) => new Date(d.period));
           this._data.series.forEach((d) => max = Math.max(max === undefined ? 0 : max, ...d.values));
           this._extentY = [-(max === undefined ? 0 : max), max === undefined ? 0 : max];
           return this;
