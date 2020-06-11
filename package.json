@@ -1,6 +1,6 @@
 {
   "name": "@buckneri/streamchart",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Just a stream chart visualisation",
   "main": "./dist/streamchart.js",
   "types": "./dist/index.d.ts",
