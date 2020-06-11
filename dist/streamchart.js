@@ -4736,7 +4736,6 @@ class Streamchart {
         this._extentX = [new Date(), new Date()];
         this._extentY = [0, 0];
         this._fp = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" }).format;
-        this._selectedLabel = "";
         if (options.margin !== undefined) {
             let m = options.margin;
             m.left = isNaN(m.left) ? 0 : m.left;
@@ -4763,7 +4762,6 @@ class Streamchart {
         selectAll(".selected").classed("selected", false);
         selectAll(".fade").classed("fade", false);
         select(".stream-tip").text("");
-        this._selectedLabel = "";
         return this;
     }
     /**
@@ -4877,9 +4875,22 @@ class Streamchart {
             .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
         streams
             .on("click", () => this._streamClickHandler(event.target))
-            .on("mousemove", (d, i, n) => this._streamMouseMoveHandler(d, i, n));
+            .on("mousemove", (d, i, n) => this._streamMouseMoveHandler(d, i, n))
+            .on("mouseout", (d, i, n) => this._streamMouseLeaveHandler(d, i, n));
         streams.append("title")
             .text((d) => `${d.key}`);
+        this._marker = this._canvas.append("g")
+            .attr("id", (d, i) => `${id}_mark${i}`);
+        this._marker.append("line")
+            .attr("class", "stream-marker")
+            .attr("x1", 0).attr("x2", 0)
+            .attr("y1", 0).attr("y2", 0);
+        this._marker.append("circle")
+            .attr("class", "stream-marker first")
+            .attr("r", 0).attr("cx", 0).attr("cy", 0);
+        this._marker.append("circle")
+            .attr("class", "stream-marker second")
+            .attr("r", 0).attr("cx", 0).attr("cy", 0);
         return this;
     }
     _streamClickHandler(el) {
@@ -4890,25 +4901,53 @@ class Streamchart {
             .each((d, i, n) => {
             if (n[i] === el) {
                 select(el).classed("selected", true);
-                this._selectedLabel = d.key;
             }
             else {
                 select(n[i]).classed("fade", true);
             }
         });
     }
+    _streamMouseLeaveHandler(d, i, nodes) {
+        this._marker.select("line")
+            .attr("x1", 0)
+            .attr("x2", 0)
+            .attr("y1", 0)
+            .attr("y2", 0);
+        this._marker.selectAll("circle")
+            .attr("r", 0)
+            .attr("cx", 0)
+            .attr("cy", 0);
+    }
     _streamMouseMoveHandler(d, i, nodes) {
         const mxy = mouse(nodes[i]);
         const mouseDate = this._scaleX.invert(mxy[0]);
         const dates = this._data.series.map(s => [new Date(s.label), s.sum]);
         const bisect = bisector((d) => d[0]);
-        const m = bisect.left(dates, mouseDate);
+        let m = bisect.left(dates, mouseDate);
+        if (m === 0) {
+            m = 1;
+        }
         const d0 = d[m - 1];
         const d1 = d[m];
-        const dt = mouseDate - d0.data.label > d1.data.label - mouseDate ? d1 : d0;
+        const t0 = new Date(d0.data.label);
+        const t1 = new Date(d1.data.label);
+        const dt = mouseDate - t0 > t1 - mouseDate ? d1 : d0;
         const v = Math.abs(dt[1] - dt[0]);
         const perc = this._fp((v / dt.data.sum));
         this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.label})`);
+        this._marker.select("line")
+            .attr("x1", mxy[0] - 1)
+            .attr("x2", mxy[0] - 1)
+            .attr("y1", this._scaleY(dt[0]))
+            .attr("y2", this._scaleY(dt[1]));
+        this._marker.select("circle.first")
+            .attr("r", 5)
+            .attr("cx", mxy[0] - 1)
+            .attr("cy", this._scaleY(dt[0]));
+        this._marker.select("circle.second")
+            .attr("r", 5)
+            .attr("cx", mxy[0] - 1)
+            .attr("cy", this._scaleY(dt[1]));
     }
     /**
      * Calculates the chart scale

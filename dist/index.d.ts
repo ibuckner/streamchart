@@ -31,9 +31,9 @@ export declare class Streamchart {
     private _extentX;
     private _extentY;
     private _fp;
+    private _marker;
     private _scaleX;
     private _scaleY;
-    private _selectedLabel;
     private _svg;
     private _tip;
     constructor(options: TStreamchartOptions);
@@ -66,6 +66,7 @@ export declare class Streamchart {
     private _drawCanvas;
     private _drawStream;
     private _streamClickHandler;
+    private _streamMouseLeaveHandler;
     private _streamMouseMoveHandler;
     /**
      * Calculates the chart scale
