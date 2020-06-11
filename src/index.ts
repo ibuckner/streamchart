@@ -51,6 +51,7 @@ export class Streamchart {
   private _marker: any;
   private _scaleX: any;
   private _scaleY: any;
+  private _selected: SVGElement | undefined;
   private _svg: any;
   private _tip: any;
 
@@ -84,6 +85,8 @@ export class Streamchart {
     selectAll(".selected").classed("selected", false);
     selectAll(".fade").classed("fade", false);
     select(".stream-tip").text("");
+    this._selected = undefined;
+    this._clearMarker();
     return this;
   }
 
@@ -146,6 +149,27 @@ export class Streamchart {
 
   // ***** PRIVATE METHODS
 
+  private _canvasMouseMoveHandler(): void {
+    if (this._selected === undefined) {
+      this._clearMarker();
+    } else {
+      this._moveMarker(this._selected);
+    }
+  }
+
+  private _clearMarker(): void {
+    this._marker.select("line")
+      .attr("x1", 0)
+      .attr("x2", 0)
+      .attr("y1", 0)
+      .attr("y2", 0);
+
+    this._marker.selectAll("circle")
+      .attr("r", 0)
+      .attr("cx", 0)
+      .attr("cy", 0);
+  }
+
   private _drawAxes(): Streamchart {
     this._canvas.append("g")
       .attr("transform", `translate(0,${this.rh * 0.9})`)
@@ -177,7 +201,8 @@ export class Streamchart {
     sg.id = "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length;
 
     const s = select(sg);
-    s.on("click", () => this.clearSelection());
+    s.on("click", () => this.clearSelection())
+     .on("mousemove", () => this._canvasMouseMoveHandler());
 
     this._svg = s;
     this._canvas = s.select(".canvas");
@@ -216,8 +241,10 @@ export class Streamchart {
 
     streams
       .on("click", () => this._streamClickHandler(event.target))
-      .on("mousemove", (d: any, i: number, n: Node[]) => this._streamMouseMoveHandler(d, i, n))
-      .on("mouseout", (d: any, i: number, n: Node[]) => this._streamMouseLeaveHandler(d, i, n));
+      .on("mousemove", (d: any, i: number, n: Node[]) => {
+        event.stopPropagation();
+        this._moveMarker((this._selected ? this._selected : n[i]) as SVGElement);
+      });
 
     streams.append("title")
       .text((d: any) => `${d.key}`);
@@ -241,42 +268,21 @@ export class Streamchart {
     return this;
   }
 
-  private _streamClickHandler(el: Element): void {
-    event.stopPropagation();
-    this.clearSelection();
-    window.dispatchEvent(new CustomEvent("stream-selected", { detail: el }));
-    selectAll("path.streamchart")
-      .each((d: any, i: number, n: any) => {
-        if (n[i] === el) {
-          select(el).classed("selected", true);
-        } else {
-          select(n[i]).classed("fade", true);
-        }
-      });
-  }
-
-  private _streamMouseLeaveHandler(d: any, i: number, nodes: any[]): void {
-    this._marker.select("line")
-      .attr("x1", 0)
-      .attr("x2", 0)
-      .attr("y1", 0)
-      .attr("y2", 0);
-
-    this._marker.selectAll("circle")
-      .attr("r", 0)
-      .attr("cx", 0)
-      .attr("cy", 0);
-  }
-
-  private _streamMouseMoveHandler(d: any, i: number, nodes: any[]): void {
-    const mxy = mouse(nodes[i]);
+  private _moveMarker(el: SVGElement): void {
+    const d: any = select(el).datum();
+    const mxy = mouse(el as any);
     const mouseDate = this._scaleX.invert(mxy[0]);
+    if (mouseDate === undefined) {
+      return;
+    }
     const dates = this._data.series.map(s => [new Date(s.period), s.sum]);
 
     const bisect = bisector((d: any) => d[0]);
     let m = bisect.left(dates, mouseDate);
     if (m === 0) {
       m = 1;
+    } else if (m > d.length - 1) {
+      m = d.length - 1; 
     }
 
     const d0 = d[m - 1];
@@ -289,20 +295,35 @@ export class Streamchart {
     this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.period})`);
 
     this._marker.select("line")
-      .attr("x1", mxy[0]-1)
-      .attr("x2", mxy[0]-1)
+      .attr("x1", this._scaleX(new Date(dt.data.period)))
+      .attr("x2", this._scaleX(new Date(dt.data.period)))
       .attr("y1", this._scaleY(dt[0]))
       .attr("y2", this._scaleY(dt[1]));
 
     this._marker.select("circle.first")
       .attr("r", 5)
-      .attr("cx", mxy[0]-1)
+      .attr("cx", this._scaleX(new Date(dt.data.period)))
       .attr("cy", this._scaleY(dt[0]));
     
     this._marker.select("circle.second")
       .attr("r", 5)
-      .attr("cx", mxy[0]-1)
+      .attr("cx", this._scaleX(new Date(dt.data.period)))
       .attr("cy", this._scaleY(dt[1]));
+  }
+
+  private _streamClickHandler(el: Element): void {
+    event.stopPropagation();
+    this.clearSelection();
+    window.dispatchEvent(new CustomEvent("stream-selected", { detail: el }));
+    selectAll("path.streamchart")
+      .each((d: any, i: number, n: any) => {
+        if (n[i] === el) {
+          select(el).classed("selected", true);
+          this._selected = n[i];
+        } else {
+          select(n[i]).classed("fade", true);
+        }
+      });
   }
 
   /**
