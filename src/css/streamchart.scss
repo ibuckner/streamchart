@@ -3,7 +3,7 @@
 path.streamchart {
   cursor: pointer;
   fill-opacity: 0.8;
-  transition: fill-opacity 500ms;
+  transition: all 500ms ease-in-out;
 }
 
 path.streamchart.fade {

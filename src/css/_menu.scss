@@ -1,17 +1,5 @@
 @use "globals";
 
-select {
-  direction: rtl;
-  height: 1.5em;
-  width: 130px;
-}
-
-input:hover,
-select:hover,
-option:hover {
-  cursor: pointer;
-}
-
 .menu {
   @include globals.fx($dir: column);
   @include globals.transition;
@@ -24,7 +12,7 @@ option:hover {
   position: fixed;
   right: 0;
   top: 50px;
-  width: 25%;
+  width: 40%;
   z-index: 600000;
 }
 

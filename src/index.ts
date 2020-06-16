@@ -42,9 +42,11 @@ export class Streamchart {
   public rw: number = 150;
   public w: number = 200;
 
+  private _axis: any;
   private _canvas: any;
   private _color = scaleOrdinal(schemePaired);
   private _data: TStream = { labels: { axis: { x: "" }, series: [] }, series: []};
+  private _dataStacked: any;
   private _extentX: [Date, Date] = [new Date(), new Date()];
   private _extentY: [number, number] = [0, 0];
   private _fp: Intl.NumberFormat = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" });
@@ -74,8 +76,7 @@ export class Streamchart {
       this.rw = this.w - this.margin.left - this.margin.right;
     }
     
-    this.data(options.data)
-        .initialise();
+    this.data(options.data);
   }
 
   /**
@@ -108,7 +109,21 @@ export class Streamchart {
     this._data.series.forEach(s => {
       s.sum = s.values.map(v => v).reduce(sum);
     });
+  
     this._scalingExtent();
+    this._scaling();
+
+    const st = stack()
+      .offset(stackOffsetSilhouette)
+      .keys(this._data.labels?.series as string[])
+      // @ts-ignore
+      .value((d: any, key: string) => {
+        let i: number = this._data.labels?.series.indexOf(key) as number;
+        return d.values[i];
+      });
+
+    this._dataStacked = st(this._data.series as any);
+
     return this;
   }
 
@@ -126,16 +141,9 @@ export class Streamchart {
   public draw(): Streamchart {
     this._drawCanvas()
       ._drawAxes()
-      ._drawStream();
+      ._drawStream()
+      ._drawMarker();
     
-    return this;
-  }
-
-  /**
-   * Recalculate internal values
-   */
-  public initialise(): Streamchart {
-    this._scaling();
     return this;
   }
 
@@ -171,99 +179,120 @@ export class Streamchart {
   }
 
   private _drawAxes(): Streamchart {
-    this._canvas.append("g")
-      .attr("transform", `translate(0,${this.rh * 0.9})`)
-      .call(
-        axisBottom(this._scaleX).tickSize(-this.rh * 0.7)
-      ).select(".domain").remove();
+    if (this._axis === undefined) {
+      this._axis = this._canvas.append("g")
+        .attr("class", "stream-axis")
+        .attr("transform", `translate(0,${this.rh * 0.9})`);
+    }
 
-    this._canvas.append("text")
-      .attr("text-anchor", "end")
-      .attr("x", this.rw)
-      .attr("y", this.rh - 30 )
-      .text(`Time (${this._data.labels?.axis.x})`);
+    this._axis.call(
+      axisBottom(this._scaleX).tickSize(-this.rh * 0.7)
+    ).select(".domain").remove();
+
+    let xAxisLabel = this._canvas.select("text.stream-axis-text");
+    if (xAxisLabel.empty()) {
+      this._canvas.append("text")
+        .attr("class", "stream-axis-text")
+        .attr("text-anchor", "end")
+        .attr("x", this.rw)
+        .attr("y", this.rh - 30 );
+    }
+    xAxisLabel.text(`Time (${this._data.labels?.axis.x})`);
     
-    this._tip = this._canvas.append("text")
-      .attr("class", "stream-tip")
-      .attr("x", 0)
-      .attr("y", (this.margin.top * 2) + 1);
+    this._tip = this._canvas.select("text.stream-tip");
+    if (this._tip.empty()) {
+      this._tip = this._canvas.append("text")
+        .attr("class", "stream-tip")
+        .attr("x", 0)
+        .attr("y", (this.margin.top * 2) + 1);
+    }
 
     return this;
   }
 
   private _drawCanvas(): Streamchart {
-    const sg: SVGElement = svg(this.container, {
-      height: this.h, 
-      margin: this.margin,
-      width: this.w
-    }) as any;
-    sg.classList.add("streamchart");
-    sg.id = "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length;
+    if (select(this.container).select("svg.streamchart").empty()) {
+      let sg: SVGElement | null = svg(this.container, {
+        class: "streamchart",
+        height: this.h,
+        id: "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length,
+        margin: this.margin,
+        width: this.w
+      }) as SVGElement;
+      this._svg = select(sg)
+        .on("click", () => this.clearSelection())
+        .on("mousemove", () => this._canvasMouseMoveHandler());
+      this._canvas = this._svg.select(".canvas");
+    }
 
-    const s = select(sg);
-    s.on("click", () => this.clearSelection())
-     .on("mousemove", () => this._canvasMouseMoveHandler());
+    return this;
+  }
 
-    this._svg = s;
-    this._canvas = s.select(".canvas");
+  private _drawMarker(): Streamchart {
+    if (this._marker === undefined) {
+      const id: string = (this._svg.node() as SVGElement).id;
+
+      this._marker = this._canvas.append("g")
+        .attr("id", (d: any, i: number) => `${id}_mark${i}`);
+
+      this._marker.append("line")
+        .attr("class", "stream-marker")
+        .attr("x1", 0).attr("x2", 0)
+        .attr("y1", 0).attr("y2", 0);
+
+      this._marker.append("circle")
+        .attr("class", "stream-marker first")
+        .attr("r", 0).attr("cx", 0).attr("cy", 0);
+
+      this._marker.append("circle")
+        .attr("class", "stream-marker second")
+        .attr("r", 0).attr("cx", 0).attr("cy", 0);
+    }
 
     return this;
   }
 
   private _drawStream(): Streamchart {
     const id: string = (this._svg.node() as SVGElement).id;
-
-    const st = stack()
-      .offset(stackOffsetSilhouette)
-      .keys(this._data.labels?.series as string[])
-      // @ts-ignore
-      .value((d: any, key: string) => {
-        let i: number = this._data.labels?.series.indexOf(key) as number;
-        return d.values[i];
-      });
-  
-    const stackedData = st(this._data.series as any);
     
     const ar = area()
-      .x((d: any, i: number) => this._scaleX(new Date(d.data.period)))
-      .y0((d: any, i: number) => this._scaleY(d[0]))
-      .y1((d: any, i: number) => this._scaleY(d[1]));
+      .x((d: any) => this._scaleX(new Date(d.data.period)))
+      .y0((d: any) => this._scaleY(d[0]))
+      .y1((d: any) => this._scaleY(d[1]));
 
     let n = 0;
-    const streams = this._canvas.selectAll("path.streamchart")
-      .data(stackedData)
-      .enter()
-        .append("path")
-          .attr("id", (d: any, i: number) => `${id}_p${i}`)
-          .attr("class", "streamchart")
-          .attr("d", ar as any)
-          .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
+    let streams: any;
 
-    streams
-      .on("click", () => this._streamClickHandler(event.target))
-      .on("mousemove", (d: any, i: number, n: Node[]) => {
-        event.stopPropagation();
-        this._moveMarker((this._selected ? this._selected : n[i]) as SVGElement);
-      });
+    let g = this._canvas.select("g.streams");
+    if (g.empty()) {
+      g = this._canvas.append("g").attr("class", "streams");
+    }
 
-    streams.append("title")
-      .text((d: any) => `${d.key}`);
+    g.selectAll("path.streamchart")
+      .data(this._dataStacked)
+      .join(
+        (enter: any) => {
+          streams = enter.append("path")
+            .attr("id", (d: any, i: number) => `${id}_p${i}`)
+            .attr("class", "streamchart")
+            .attr("d", ar as any)
+            .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke")
+            .on("click", () => this._streamClickHandler(event.target))
+            .on("mousemove", (d: any, i: number, n: Node[]) => {
+              event.stopPropagation();
+              this._moveMarker((this._selected ? this._selected : n[i]) as SVGElement);
+            });
 
-    this._marker = this._canvas.append("g")
-      .attr("id", (d: any, i: number) => `${id}_mark${i}`);
-
-    this._marker.append("line")
-      .attr("class", "stream-marker")
-      .attr("x1", 0).attr("x2", 0)
-      .attr("y1", 0).attr("y2", 0);
-
-    this._marker.append("circle")
-      .attr("class", "stream-marker first")
-      .attr("r", 0).attr("cx", 0).attr("cy", 0);
-
-    this._marker.append("circle")
-      .attr("class", "stream-marker second")
-      .attr("r", 0).attr("cx", 0).attr("cy", 0);
+          streams.append("title").text((d: any) => `${d.key}`);
+        },
+        (update: any) => {
+          update.attr("id", (d: any, i: number) => `${id}_p${i}`)
+            .attr("d", ar as any)
+            .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
+          update.select("title").text((d: any) => `${d.key}`);
+        },
+        (exit: any) => exit.remove()
+      );
 
     return this;
   }

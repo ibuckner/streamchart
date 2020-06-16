@@ -4402,6 +4402,12 @@ function svg(container, options) {
     svg.setAttributeNS(null, "viewBox", `0 0 ${options.width} ${options.height}`);
     svg.setAttributeNS(null, "preserveAspectRatio", "xMinYMin meet");
     svg.setAttributeNS(NS.xmlns, "xmlns", NS.svg);
+    if (options.id) {
+        svg.setAttributeNS(null, "id", options.id);
+    }
+    if (options.class) {
+        svg.setAttributeNS(null, "class", options.class);
+    }
     container.appendChild(svg);
     const defs = document.createElementNS(NS.svg, "defs");
     svg.appendChild(defs);
@@ -4441,8 +4447,7 @@ class Streamchart {
             this.rh = this.h - this.margin.top - this.margin.bottom;
             this.rw = this.w - this.margin.left - this.margin.right;
         }
-        this.data(options.data)
-            .initialise();
+        this.data(options.data);
     }
     /**
      * Clears selection from Streamchart
@@ -4460,6 +4465,7 @@ class Streamchart {
      * @param data - Streamchart data
      */
     data(data) {
+        var _a;
         this._data = data;
         if (this._data.colors === undefined) {
             this._data.colors = [];
@@ -4475,6 +4481,17 @@ class Streamchart {
             s.sum = s.values.map(v => v).reduce(sum);
         });
         this._scalingExtent();
+        this._scaling();
+        const st = stack()
+            .offset(stackOffsetSilhouette)
+            .keys((_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.series)
+            // @ts-ignore
+            .value((d, key) => {
+            var _a;
+            let i = (_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.series.indexOf(key);
+            return d.values[i];
+        });
+        this._dataStacked = st(this._data.series);
         return this;
     }
     /**
@@ -4490,14 +4507,8 @@ class Streamchart {
     draw() {
         this._drawCanvas()
             ._drawAxes()
-            ._drawStream();
-        return this;
-    }
-    /**
-     * Recalculate internal values
-     */
-    initialise() {
-        this._scaling();
+            ._drawStream()
+            ._drawMarker();
         return this;
     }
     /**
@@ -4529,81 +4540,96 @@ class Streamchart {
     }
     _drawAxes() {
         var _a;
-        this._canvas.append("g")
-            .attr("transform", `translate(0,${this.rh * 0.9})`)
-            .call(axisBottom(this._scaleX).tickSize(-this.rh * 0.7)).select(".domain").remove();
-        this._canvas.append("text")
-            .attr("text-anchor", "end")
-            .attr("x", this.rw)
-            .attr("y", this.rh - 30)
-            .text(`Time (${(_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.axis.x})`);
-        this._tip = this._canvas.append("text")
-            .attr("class", "stream-tip")
-            .attr("x", 0)
-            .attr("y", (this.margin.top * 2) + 1);
+        if (this._axis === undefined) {
+            this._axis = this._canvas.append("g")
+                .attr("class", "stream-axis")
+                .attr("transform", `translate(0,${this.rh * 0.9})`);
+        }
+        this._axis.call(axisBottom(this._scaleX).tickSize(-this.rh * 0.7)).select(".domain").remove();
+        let xAxisLabel = this._canvas.select("text.stream-axis-text");
+        if (xAxisLabel.empty()) {
+            this._canvas.append("text")
+                .attr("class", "stream-axis-text")
+                .attr("text-anchor", "end")
+                .attr("x", this.rw)
+                .attr("y", this.rh - 30);
+        }
+        xAxisLabel.text(`Time (${(_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.axis.x})`);
+        this._tip = this._canvas.select("text.stream-tip");
+        if (this._tip.empty()) {
+            this._tip = this._canvas.append("text")
+                .attr("class", "stream-tip")
+                .attr("x", 0)
+                .attr("y", (this.margin.top * 2) + 1);
+        }
         return this;
     }
     _drawCanvas() {
-        const sg = svg(this.container, {
-            height: this.h,
-            margin: this.margin,
-            width: this.w
-        });
-        sg.classList.add("streamchart");
-        sg.id = "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length;
-        const s = select(sg);
-        s.on("click", () => this.clearSelection())
-            .on("mousemove", () => this._canvasMouseMoveHandler());
-        this._svg = s;
-        this._canvas = s.select(".canvas");
+        if (select(this.container).select("svg.streamchart").empty()) {
+            let sg = svg(this.container, {
+                class: "streamchart",
+                height: this.h,
+                id: "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length,
+                margin: this.margin,
+                width: this.w
+            });
+            this._svg = select(sg)
+                .on("click", () => this.clearSelection())
+                .on("mousemove", () => this._canvasMouseMoveHandler());
+            this._canvas = this._svg.select(".canvas");
+        }
+        return this;
+    }
+    _drawMarker() {
+        if (this._marker === undefined) {
+            const id = this._svg.node().id;
+            this._marker = this._canvas.append("g")
+                .attr("id", (d, i) => `${id}_mark${i}`);
+            this._marker.append("line")
+                .attr("class", "stream-marker")
+                .attr("x1", 0).attr("x2", 0)
+                .attr("y1", 0).attr("y2", 0);
+            this._marker.append("circle")
+                .attr("class", "stream-marker first")
+                .attr("r", 0).attr("cx", 0).attr("cy", 0);
+            this._marker.append("circle")
+                .attr("class", "stream-marker second")
+                .attr("r", 0).attr("cx", 0).attr("cy", 0);
+        }
         return this;
     }
     _drawStream() {
-        var _a;
         const id = this._svg.node().id;
-        const st = stack()
-            .offset(stackOffsetSilhouette)
-            .keys((_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.series)
-            // @ts-ignore
-            .value((d, key) => {
-            var _a;
-            let i = (_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.series.indexOf(key);
-            return d.values[i];
-        });
-        const stackedData = st(this._data.series);
         const ar = area()
-            .x((d, i) => this._scaleX(new Date(d.data.period)))
-            .y0((d, i) => this._scaleY(d[0]))
-            .y1((d, i) => this._scaleY(d[1]));
+            .x((d) => this._scaleX(new Date(d.data.period)))
+            .y0((d) => this._scaleY(d[0]))
+            .y1((d) => this._scaleY(d[1]));
         let n = 0;
-        const streams = this._canvas.selectAll("path.streamchart")
-            .data(stackedData)
-            .enter()
-            .append("path")
-            .attr("id", (d, i) => `${id}_p${i}`)
-            .attr("class", "streamchart")
-            .attr("d", ar)
-            .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
-        streams
-            .on("click", () => this._streamClickHandler(event.target))
-            .on("mousemove", (d, i, n) => {
-            event.stopPropagation();
-            this._moveMarker((this._selected ? this._selected : n[i]));
-        });
-        streams.append("title")
-            .text((d) => `${d.key}`);
-        this._marker = this._canvas.append("g")
-            .attr("id", (d, i) => `${id}_mark${i}`);
-        this._marker.append("line")
-            .attr("class", "stream-marker")
-            .attr("x1", 0).attr("x2", 0)
-            .attr("y1", 0).attr("y2", 0);
-        this._marker.append("circle")
-            .attr("class", "stream-marker first")
-            .attr("r", 0).attr("cx", 0).attr("cy", 0);
-        this._marker.append("circle")
-            .attr("class", "stream-marker second")
-            .attr("r", 0).attr("cx", 0).attr("cy", 0);
+        let streams;
+        let g = this._canvas.select("g.streams");
+        if (g.empty()) {
+            g = this._canvas.append("g").attr("class", "streams");
+        }
+        g.selectAll("path.streamchart")
+            .data(this._dataStacked)
+            .join((enter) => {
+            streams = enter.append("path")
+                .attr("id", (d, i) => `${id}_p${i}`)
+                .attr("class", "streamchart")
+                .attr("d", ar)
+                .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke")
+                .on("click", () => this._streamClickHandler(event.target))
+                .on("mousemove", (d, i, n) => {
+                event.stopPropagation();
+                this._moveMarker((this._selected ? this._selected : n[i]));
+            });
+            streams.append("title").text((d) => `${d.key}`);
+        }, (update) => {
+            update.attr("id", (d, i) => `${id}_p${i}`)
+                .attr("d", ar)
+                .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
+            update.select("title").text((d) => `${d.key}`);
+        }, (exit) => exit.remove());
         return this;
     }
     _moveMarker(el) {

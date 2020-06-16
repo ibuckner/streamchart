@@ -85,9 +85,6 @@ streamchart.destroy();
 streamchart.draw();
 // draws chart to DOM
 
-streamchart.initialise();
-// (re)calculates the internal values
-
 streamchart.toString();
 // serialises the internal data
 ```

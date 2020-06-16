@@ -29,9 +29,11 @@ export declare class Streamchart {
     rh: number;
     rw: number;
     w: number;
+    private _axis;
     private _canvas;
     private _color;
     private _data;
+    private _dataStacked;
     private _extentX;
     private _extentY;
     private _fp;
@@ -60,10 +62,6 @@ export declare class Streamchart {
      */
     draw(): Streamchart;
     /**
-     * Recalculate internal values
-     */
-    initialise(): Streamchart;
-    /**
      * Serialise the Streamchart data
      */
     toString(): string;
@@ -71,6 +69,7 @@ export declare class Streamchart {
     private _clearMarker;
     private _drawAxes;
     private _drawCanvas;
+    private _drawMarker;
     private _drawStream;
     private _moveMarker;
     private _streamClickHandler;
