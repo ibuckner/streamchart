@@ -4431,6 +4431,7 @@ class Streamchart {
         this._extentX = [new Date(), new Date()];
         this._extentY = [0, 0];
         this._fp = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" });
+        this._id = "";
         if (options.margin !== undefined) {
             let m = options.margin;
             m.left = isNaN(m.left) ? 0 : m.left;
@@ -4492,6 +4493,10 @@ class Streamchart {
             return d.values[i];
         });
         this._dataStacked = st(this._data.series);
+        this._area = area()
+            .x((d) => this._scaleX(new Date(d.data.period)))
+            .y0((d) => this._scaleY(d[0]))
+            .y1((d) => this._scaleY(d[1]));
         return this;
     }
     /**
@@ -4566,10 +4571,11 @@ class Streamchart {
     }
     _drawCanvas() {
         if (select(this.container).select("svg.streamchart").empty()) {
+            this._id = "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length;
             let sg = svg(this.container, {
                 class: "streamchart",
                 height: this.h,
-                id: "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length,
+                id: this._id,
                 margin: this.margin,
                 width: this.w
             });
@@ -4582,9 +4588,8 @@ class Streamchart {
     }
     _drawMarker() {
         if (this._marker === undefined) {
-            const id = this._svg.node().id;
             this._marker = this._canvas.append("g")
-                .attr("id", (d, i) => `${id}_mark${i}`);
+                .attr("id", (d, i) => `${this._id}_mark${i}`);
             this._marker.append("line")
                 .attr("class", "stream-marker")
                 .attr("x1", 0).attr("x2", 0)
@@ -4599,11 +4604,6 @@ class Streamchart {
         return this;
     }
     _drawStream() {
-        const id = this._svg.node().id;
-        const ar = area()
-            .x((d) => this._scaleX(new Date(d.data.period)))
-            .y0((d) => this._scaleY(d[0]))
-            .y1((d) => this._scaleY(d[1]));
         let n = 0;
         let streams;
         let g = this._canvas.select("g.streams");
@@ -4614,9 +4614,9 @@ class Streamchart {
             .data(this._dataStacked)
             .join((enter) => {
             streams = enter.append("path")
-                .attr("id", (d, i) => `${id}_p${i}`)
+                .attr("id", (d, i) => `${this._id}_p${i}`)
                 .attr("class", "streamchart")
-                .attr("d", ar)
+                .attr("d", this._area)
                 .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke")
                 .on("click", () => this._streamClickHandler(event.target))
                 .on("mousemove", (d, i, n) => {
@@ -4625,8 +4625,8 @@ class Streamchart {
             });
             streams.append("title").text((d) => `${d.key}`);
         }, (update) => {
-            update.attr("id", (d, i) => `${id}_p${i}`)
-                .attr("d", ar)
+            update.attr("id", (d, i) => `${this._id}_p${i}`)
+                .attr("d", this._area)
                 .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
             update.select("title").text((d) => `${d.key}`);
         }, (exit) => exit.remove());

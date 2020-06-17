@@ -42,6 +42,7 @@ export class Streamchart {
   public rw: number = 150;
   public w: number = 200;
 
+  private _area: any;
   private _axis: any;
   private _canvas: any;
   private _color = scaleOrdinal(schemePaired);
@@ -50,6 +51,7 @@ export class Streamchart {
   private _extentX: [Date, Date] = [new Date(), new Date()];
   private _extentY: [number, number] = [0, 0];
   private _fp: Intl.NumberFormat = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" });
+  private _id: string = "";
   private _marker: any;
   private _scaleX: any;
   private _scaleY: any;
@@ -123,6 +125,11 @@ export class Streamchart {
       });
 
     this._dataStacked = st(this._data.series as any);
+
+    this._area = area()
+      .x((d: any) => this._scaleX(new Date(d.data.period)))
+      .y0((d: any) => this._scaleY(d[0]))
+      .y1((d: any) => this._scaleY(d[1]));
 
     return this;
   }
@@ -212,10 +219,11 @@ export class Streamchart {
 
   private _drawCanvas(): Streamchart {
     if (select(this.container).select("svg.streamchart").empty()) {
+      this._id = "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length;
       let sg: SVGElement | null = svg(this.container, {
         class: "streamchart",
         height: this.h,
-        id: "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length,
+        id: this._id,
         margin: this.margin,
         width: this.w
       }) as SVGElement;
@@ -230,10 +238,8 @@ export class Streamchart {
 
   private _drawMarker(): Streamchart {
     if (this._marker === undefined) {
-      const id: string = (this._svg.node() as SVGElement).id;
-
       this._marker = this._canvas.append("g")
-        .attr("id", (d: any, i: number) => `${id}_mark${i}`);
+        .attr("id", (d: any, i: number) => `${this._id}_mark${i}`);
 
       this._marker.append("line")
         .attr("class", "stream-marker")
@@ -253,13 +259,6 @@ export class Streamchart {
   }
 
   private _drawStream(): Streamchart {
-    const id: string = (this._svg.node() as SVGElement).id;
-    
-    const ar = area()
-      .x((d: any) => this._scaleX(new Date(d.data.period)))
-      .y0((d: any) => this._scaleY(d[0]))
-      .y1((d: any) => this._scaleY(d[1]));
-
     let n = 0;
     let streams: any;
 
@@ -273,21 +272,20 @@ export class Streamchart {
       .join(
         (enter: any) => {
           streams = enter.append("path")
-            .attr("id", (d: any, i: number) => `${id}_p${i}`)
+            .attr("id", (d: any, i: number) => `${this._id}_p${i}`)
             .attr("class", "streamchart")
-            .attr("d", ar as any)
+            .attr("d", this._area as any)
             .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke")
             .on("click", () => this._streamClickHandler(event.target))
             .on("mousemove", (d: any, i: number, n: Node[]) => {
               event.stopPropagation();
               this._moveMarker((this._selected ? this._selected : n[i]) as SVGElement);
             });
-
           streams.append("title").text((d: any) => `${d.key}`);
         },
         (update: any) => {
-          update.attr("id", (d: any, i: number) => `${id}_p${i}`)
-            .attr("d", ar as any)
+          update.attr("id", (d: any, i: number) => `${this._id}_p${i}`)
+            .attr("d", this._area as any)
             .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
           update.select("title").text((d: any) => `${d.key}`);
         },

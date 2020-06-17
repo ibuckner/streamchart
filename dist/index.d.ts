@@ -29,6 +29,7 @@ export declare class Streamchart {
     rh: number;
     rw: number;
     w: number;
+    private _area;
     private _axis;
     private _canvas;
     private _color;
@@ -37,6 +38,7 @@ export declare class Streamchart {
     private _extentX;
     private _extentY;
     private _fp;
+    private _id;
     private _marker;
     private _scaleX;
     private _scaleY;
