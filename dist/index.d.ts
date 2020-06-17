@@ -8,7 +8,7 @@ export declare type TStreamLabels = {
     axis: TStreamAxisLabel;
 };
 export declare type TStreamSeries = {
-    period: string;
+    period: string | Date;
     sum?: number;
     values: number[];
 };

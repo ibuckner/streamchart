@@ -4,7 +4,7 @@ import { event, mouse, select, selectAll } from "d3-selection";
 import { scaleLinear, scaleOrdinal, scaleTime } from "d3-scale";
 import { schemePaired } from "d3-scale-chromatic";
 import { area, stack, stackOffsetSilhouette } from "d3-shape";
-import { measure, svg, TMargin } from "@buckneri/spline";
+import { svg, TMargin } from "@buckneri/spline";
 
 export type TStreamAxisLabel = {
   x: string,
@@ -17,7 +17,7 @@ export type TStreamLabels = {
 };
 
 export type TStreamSeries = {
-  period: string,
+  period: string | Date,
   sum?: number,
   values: number[]
 };
@@ -71,7 +71,7 @@ export class Streamchart {
 
     if (options.container !== undefined) {
       this.container = options.container;
-      const box: DOMRect = measure(this.container);
+      const box: DOMRect = this.container.getBoundingClientRect();
       this.h = box.height;
       this.w = box.width;
       this.rh = this.h - this.margin.top - this.margin.bottom;
@@ -108,7 +108,11 @@ export class Streamchart {
       });
     }
     const sum = (accumulator: number, currentValue: number) => accumulator + currentValue;
+    const isDate: Function = (dd: any) => dd instanceof Date;
     this._data.series.forEach(s => {
+      if (!isDate(s.period)) {
+        s.period = new Date(s.period);
+      }
       s.sum = s.values.map(v => v).reduce(sum);
     });
   
@@ -127,7 +131,7 @@ export class Streamchart {
     this._dataStacked = st(this._data.series as any);
 
     this._area = area()
-      .x((d: any) => this._scaleX(new Date(d.data.period)))
+      .x((d: any) => this._scaleX(d.data.period))
       .y0((d: any) => this._scaleY(d[0]))
       .y1((d: any) => this._scaleY(d[1]));
 
@@ -259,7 +263,7 @@ export class Streamchart {
   }
 
   private _drawStream(): Streamchart {
-    let n = 0;
+    let n: number = 0;
     let streams: any;
 
     let g = this._canvas.select("g.streams");
@@ -302,7 +306,7 @@ export class Streamchart {
     if (mouseDate === undefined) {
       return;
     }
-    const dates = this._data.series.map(s => [new Date(s.period), s.sum]);
+    const dates = this._data.series.map(s => [s.period, s.sum]);
 
     const bisect = bisector((d: any) => d[0]);
     let m = bisect.left(dates, mouseDate);
@@ -314,27 +318,25 @@ export class Streamchart {
 
     const d0 = d[m - 1];
     const d1 = d[m];
-    const t0: any = new Date(d0.data.period);
-    const t1: any = new Date(d1.data.period);
-    const dt: any = mouseDate - t0 > t1 - mouseDate ? d1 : d0;
+    const dt: any = mouseDate - d0.data.period > d1.data.period - mouseDate ? d1 : d0;
     const v: number = Math.abs(dt[1] - dt[0]);
     const perc = this._fp.format((v / dt.data.sum));
-    this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.period})`);
+    this._tip.text(`${d.key}: ${v} (${perc} of total for ${(dt.data.period as Date).toLocaleDateString()})`);
 
     this._marker.select("line")
-      .attr("x1", this._scaleX(new Date(dt.data.period)))
-      .attr("x2", this._scaleX(new Date(dt.data.period)))
+      .attr("x1", this._scaleX(dt.data.period))
+      .attr("x2", this._scaleX(dt.data.period))
       .attr("y1", this._scaleY(dt[0]))
       .attr("y2", this._scaleY(dt[1]));
 
     this._marker.select("circle.first")
       .attr("r", 5)
-      .attr("cx", this._scaleX(new Date(dt.data.period)))
+      .attr("cx", this._scaleX(dt.data.period))
       .attr("cy", this._scaleY(dt[0]));
     
     this._marker.select("circle.second")
       .attr("r", 5)
-      .attr("cx", this._scaleX(new Date(dt.data.period)))
+      .attr("cx", this._scaleX(dt.data.period))
       .attr("cy", this._scaleY(dt[1]));
   }
 
@@ -367,7 +369,7 @@ export class Streamchart {
    */
   private _scalingExtent(): Streamchart {
     let max: number | undefined = undefined;   
-    this._extentX = extent(this._data.series, (d: TStreamSeries) => new Date(d.period)) as [Date, Date];
+    this._extentX = extent(this._data.series, (d: TStreamSeries) => (d.period as Date)) as [Date, Date];
     this._data.series.forEach((d: TStreamSeries) => max = Math.max(max === undefined ? 0 : max, ...d.values));
     this._extentY = [-(max === undefined ? 0 : max), max === undefined ? 0 : max];
     return this;

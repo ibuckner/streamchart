@@ -1,3 +1,26 @@
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+
+function __spreadArrays() {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+}
+
 function ascending(a, b) {
   return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
 }
@@ -4350,7 +4373,7 @@ const NS = {
  * @returns - DOMRect
  */
 function measure(container) {
-    let result = container.getBoundingClientRect();
+    let result = JSON.parse(JSON.stringify(container.getBoundingClientRect()));
     const s = window.getComputedStyle(container);
     let ph = parseFloat(s.paddingTop) + parseFloat(s.paddingBottom);
     let pw = parseFloat(s.paddingLeft) + parseFloat(s.paddingRight);
@@ -4418,8 +4441,8 @@ function svg(container, options) {
     return svg;
 }
 
-class Streamchart {
-    constructor(options) {
+var Streamchart = /** @class */ (function () {
+    function Streamchart(options) {
         this.container = document.querySelector("body");
         this.h = 200;
         this.margin = { bottom: 20, left: 20, right: 30, top: 20 };
@@ -4433,7 +4456,7 @@ class Streamchart {
         this._fp = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" });
         this._id = "";
         if (options.margin !== undefined) {
-            let m = options.margin;
+            var m = options.margin;
             m.left = isNaN(m.left) ? 0 : m.left;
             m.right = isNaN(m.right) ? 0 : m.right;
             m.top = isNaN(m.top) ? 0 : m.top;
@@ -4442,7 +4465,7 @@ class Streamchart {
         }
         if (options.container !== undefined) {
             this.container = options.container;
-            const box = measure(this.container);
+            var box = this.container.getBoundingClientRect();
             this.h = box.height;
             this.w = box.width;
             this.rh = this.h - this.margin.top - this.margin.bottom;
@@ -4453,86 +4476,91 @@ class Streamchart {
     /**
      * Clears selection from Streamchart
      */
-    clearSelection() {
+    Streamchart.prototype.clearSelection = function () {
         selectAll(".selected").classed("selected", false);
         selectAll(".fade").classed("fade", false);
         select(".stream-tip").text("");
         this._selected = undefined;
         this._clearMarker();
         return this;
-    }
+    };
     /**
      * Saves data into Streamchart
      * @param data - Streamchart data
      */
-    data(data) {
+    Streamchart.prototype.data = function (data) {
+        var _this = this;
         var _a;
         this._data = data;
         if (this._data.colors === undefined) {
             this._data.colors = [];
         }
         if (this._data.colors.length === 0 && this._data.labels) {
-            this._data.labels.series.forEach((label) => {
+            this._data.labels.series.forEach(function (label) {
                 var _a;
-                (_a = this._data.colors) === null || _a === void 0 ? void 0 : _a.push(this._color(label));
+                (_a = _this._data.colors) === null || _a === void 0 ? void 0 : _a.push(_this._color(label));
             });
         }
-        const sum = (accumulator, currentValue) => accumulator + currentValue;
-        this._data.series.forEach(s => {
-            s.sum = s.values.map(v => v).reduce(sum);
+        var sum = function (accumulator, currentValue) { return accumulator + currentValue; };
+        var isDate = function (dd) { return dd instanceof Date; };
+        this._data.series.forEach(function (s) {
+            if (!isDate(s.period)) {
+                s.period = new Date(s.period);
+            }
+            s.sum = s.values.map(function (v) { return v; }).reduce(sum);
         });
         this._scalingExtent();
         this._scaling();
-        const st = stack()
+        var st = stack()
             .offset(stackOffsetSilhouette)
             .keys((_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.series)
             // @ts-ignore
-            .value((d, key) => {
+            .value(function (d, key) {
             var _a;
-            let i = (_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.series.indexOf(key);
+            var i = (_a = _this._data.labels) === null || _a === void 0 ? void 0 : _a.series.indexOf(key);
             return d.values[i];
         });
         this._dataStacked = st(this._data.series);
         this._area = area()
-            .x((d) => this._scaleX(new Date(d.data.period)))
-            .y0((d) => this._scaleY(d[0]))
-            .y1((d) => this._scaleY(d[1]));
+            .x(function (d) { return _this._scaleX(d.data.period); })
+            .y0(function (d) { return _this._scaleY(d[0]); })
+            .y1(function (d) { return _this._scaleY(d[1]); });
         return this;
-    }
+    };
     /**
      * Removes this chart from the DOM
      */
-    destroy() {
+    Streamchart.prototype.destroy = function () {
         select(this.container).select("svg").remove();
         return this;
-    }
+    };
     /**
      * draws the Streamchart
      */
-    draw() {
+    Streamchart.prototype.draw = function () {
         this._drawCanvas()
             ._drawAxes()
             ._drawStream()
             ._drawMarker();
         return this;
-    }
+    };
     /**
      * Serialise the Streamchart data
      */
-    toString() {
-        let dt = this._data.series.map((n) => `${n}`).join("\n");
-        return `data:\n${dt}`;
-    }
+    Streamchart.prototype.toString = function () {
+        var dt = this._data.series.map(function (n) { return "" + n; }).join("\n");
+        return "data:\n" + dt;
+    };
     // ***** PRIVATE METHODS
-    _canvasMouseMoveHandler() {
+    Streamchart.prototype._canvasMouseMoveHandler = function () {
         if (this._selected === undefined) {
             this._clearMarker();
         }
         else {
             this._moveMarker(this._selected);
         }
-    }
-    _clearMarker() {
+    };
+    Streamchart.prototype._clearMarker = function () {
         this._marker.select("line")
             .attr("x1", 0)
             .attr("x2", 0)
@@ -4542,16 +4570,16 @@ class Streamchart {
             .attr("r", 0)
             .attr("cx", 0)
             .attr("cy", 0);
-    }
-    _drawAxes() {
+    };
+    Streamchart.prototype._drawAxes = function () {
         var _a;
         if (this._axis === undefined) {
             this._axis = this._canvas.append("g")
                 .attr("class", "stream-axis")
-                .attr("transform", `translate(0,${this.rh * 0.9})`);
+                .attr("transform", "translate(0," + this.rh * 0.9 + ")");
         }
         this._axis.call(axisBottom(this._scaleX).tickSize(-this.rh * 0.7)).select(".domain").remove();
-        let xAxisLabel = this._canvas.select("text.stream-axis-text");
+        var xAxisLabel = this._canvas.select("text.stream-axis-text");
         if (xAxisLabel.empty()) {
             this._canvas.append("text")
                 .attr("class", "stream-axis-text")
@@ -4559,7 +4587,7 @@ class Streamchart {
                 .attr("x", this.rw)
                 .attr("y", this.rh - 30);
         }
-        xAxisLabel.text(`Time (${(_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.axis.x})`);
+        xAxisLabel.text("Time (" + ((_a = this._data.labels) === null || _a === void 0 ? void 0 : _a.axis.x) + ")");
         this._tip = this._canvas.select("text.stream-tip");
         if (this._tip.empty()) {
             this._tip = this._canvas.append("text")
@@ -4568,11 +4596,12 @@ class Streamchart {
                 .attr("y", (this.margin.top * 2) + 1);
         }
         return this;
-    }
-    _drawCanvas() {
+    };
+    Streamchart.prototype._drawCanvas = function () {
+        var _this = this;
         if (select(this.container).select("svg.streamchart").empty()) {
             this._id = "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length;
-            let sg = svg(this.container, {
+            var sg = svg(this.container, {
                 class: "streamchart",
                 height: this.h,
                 id: this._id,
@@ -4580,16 +4609,17 @@ class Streamchart {
                 width: this.w
             });
             this._svg = select(sg)
-                .on("click", () => this.clearSelection())
-                .on("mousemove", () => this._canvasMouseMoveHandler());
+                .on("click", function () { return _this.clearSelection(); })
+                .on("mousemove", function () { return _this._canvasMouseMoveHandler(); });
             this._canvas = this._svg.select(".canvas");
         }
         return this;
-    }
-    _drawMarker() {
+    };
+    Streamchart.prototype._drawMarker = function () {
+        var _this = this;
         if (this._marker === undefined) {
             this._marker = this._canvas.append("g")
-                .attr("id", (d, i) => `${this._id}_mark${i}`);
+                .attr("id", function (d, i) { return _this._id + "_mark" + i; });
             this._marker.append("line")
                 .attr("class", "stream-marker")
                 .attr("x1", 0).attr("x2", 0)
@@ -4602,107 +4632,108 @@ class Streamchart {
                 .attr("r", 0).attr("cx", 0).attr("cy", 0);
         }
         return this;
-    }
-    _drawStream() {
-        let n = 0;
-        let streams;
-        let g = this._canvas.select("g.streams");
+    };
+    Streamchart.prototype._drawStream = function () {
+        var _this = this;
+        var n = 0;
+        var streams;
+        var g = this._canvas.select("g.streams");
         if (g.empty()) {
             g = this._canvas.append("g").attr("class", "streams");
         }
         g.selectAll("path.streamchart")
             .data(this._dataStacked)
-            .join((enter) => {
+            .join(function (enter) {
             streams = enter.append("path")
-                .attr("id", (d, i) => `${this._id}_p${i}`)
+                .attr("id", function (d, i) { return _this._id + "_p" + i; })
                 .attr("class", "streamchart")
-                .attr("d", this._area)
-                .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke")
-                .on("click", () => this._streamClickHandler(event.target))
-                .on("mousemove", (d, i, n) => {
+                .attr("d", _this._area)
+                .style("fill", function () { return _this._data.colors ? _this._data.colors[n++] : "whitesmoke"; })
+                .on("click", function () { return _this._streamClickHandler(event.target); })
+                .on("mousemove", function (d, i, n) {
                 event.stopPropagation();
-                this._moveMarker((this._selected ? this._selected : n[i]));
+                _this._moveMarker((_this._selected ? _this._selected : n[i]));
             });
-            streams.append("title").text((d) => `${d.key}`);
-        }, (update) => {
-            update.attr("id", (d, i) => `${this._id}_p${i}`)
-                .attr("d", this._area)
-                .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
-            update.select("title").text((d) => `${d.key}`);
-        }, (exit) => exit.remove());
+            streams.append("title").text(function (d) { return "" + d.key; });
+        }, function (update) {
+            update.attr("id", function (d, i) { return _this._id + "_p" + i; })
+                .attr("d", _this._area)
+                .style("fill", function () { return _this._data.colors ? _this._data.colors[n++] : "whitesmoke"; });
+            update.select("title").text(function (d) { return "" + d.key; });
+        }, function (exit) { return exit.remove(); });
         return this;
-    }
-    _moveMarker(el) {
-        const d = select(el).datum();
-        const mxy = mouse(el);
-        const mouseDate = this._scaleX.invert(mxy[0]);
+    };
+    Streamchart.prototype._moveMarker = function (el) {
+        var d = select(el).datum();
+        var mxy = mouse(el);
+        var mouseDate = this._scaleX.invert(mxy[0]);
         if (mouseDate === undefined) {
             return;
         }
-        const dates = this._data.series.map(s => [new Date(s.period), s.sum]);
-        const bisect = bisector((d) => d[0]);
-        let m = bisect.left(dates, mouseDate);
+        var dates = this._data.series.map(function (s) { return [s.period, s.sum]; });
+        var bisect = bisector(function (d) { return d[0]; });
+        var m = bisect.left(dates, mouseDate);
         if (m === 0) {
             m = 1;
         }
         else if (m > d.length - 1) {
             m = d.length - 1;
         }
-        const d0 = d[m - 1];
-        const d1 = d[m];
-        const t0 = new Date(d0.data.period);
-        const t1 = new Date(d1.data.period);
-        const dt = mouseDate - t0 > t1 - mouseDate ? d1 : d0;
-        const v = Math.abs(dt[1] - dt[0]);
-        const perc = this._fp.format((v / dt.data.sum));
-        this._tip.text(`${d.key}: ${v} (${perc} of total for ${dt.data.period})`);
+        var d0 = d[m - 1];
+        var d1 = d[m];
+        var dt = mouseDate - d0.data.period > d1.data.period - mouseDate ? d1 : d0;
+        var v = Math.abs(dt[1] - dt[0]);
+        var perc = this._fp.format((v / dt.data.sum));
+        this._tip.text(d.key + ": " + v + " (" + perc + " of total for " + dt.data.period.toLocaleDateString() + ")");
         this._marker.select("line")
-            .attr("x1", this._scaleX(new Date(dt.data.period)))
-            .attr("x2", this._scaleX(new Date(dt.data.period)))
+            .attr("x1", this._scaleX(dt.data.period))
+            .attr("x2", this._scaleX(dt.data.period))
             .attr("y1", this._scaleY(dt[0]))
             .attr("y2", this._scaleY(dt[1]));
         this._marker.select("circle.first")
             .attr("r", 5)
-            .attr("cx", this._scaleX(new Date(dt.data.period)))
+            .attr("cx", this._scaleX(dt.data.period))
             .attr("cy", this._scaleY(dt[0]));
         this._marker.select("circle.second")
             .attr("r", 5)
-            .attr("cx", this._scaleX(new Date(dt.data.period)))
+            .attr("cx", this._scaleX(dt.data.period))
             .attr("cy", this._scaleY(dt[1]));
-    }
-    _streamClickHandler(el) {
+    };
+    Streamchart.prototype._streamClickHandler = function (el) {
+        var _this = this;
         event.stopPropagation();
         this.clearSelection();
         window.dispatchEvent(new CustomEvent("stream-selected", { detail: el }));
         selectAll("path.streamchart")
-            .each((d, i, n) => {
+            .each(function (d, i, n) {
             if (n[i] === el) {
                 select(el).classed("selected", true);
-                this._selected = n[i];
+                _this._selected = n[i];
             }
             else {
                 select(n[i]).classed("fade", true);
             }
         });
-    }
+    };
     /**
      * Calculates the chart scale
      */
-    _scaling() {
+    Streamchart.prototype._scaling = function () {
         this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]);
         this._scaleY = linear$1().domain(this._extentY).range([this.rh, 0]);
         return this;
-    }
+    };
     /**
      * Determines the minimum and maximum extent values used by scale
      */
-    _scalingExtent() {
-        let max = undefined;
-        this._extentX = extent(this._data.series, (d) => new Date(d.period));
-        this._data.series.forEach((d) => max = Math.max(max === undefined ? 0 : max, ...d.values));
+    Streamchart.prototype._scalingExtent = function () {
+        var max = undefined;
+        this._extentX = extent(this._data.series, function (d) { return d.period; });
+        this._data.series.forEach(function (d) { return max = Math.max.apply(Math, __spreadArrays([max === undefined ? 0 : max], d.values)); });
         this._extentY = [-(max === undefined ? 0 : max), max === undefined ? 0 : max];
         return this;
-    }
-}
+    };
+    return Streamchart;
+}());
 
 export { Streamchart };
