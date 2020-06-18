@@ -115,6 +115,9 @@ streamchart.rh;
 streamchart.rw;
 // relative width, width - margins
 
+streamchart.ticksX
+// Default is 5. Sets detail level on x axis
+
 streamchart.w;
 // width of chart
 ```

@@ -42,6 +42,7 @@ export class Streamchart {
   public margin: TMargin = { bottom: 20, left: 20, right: 30, top: 20 };
   public rh: number = 160;
   public rw: number = 150;
+  public ticksX: number = 5;
   public w: number = 200;
 
   private _area: any;
@@ -206,15 +207,21 @@ export class Streamchart {
       axisBottom(this._scaleX).tickSize(-this.rh * 0.7)
     ).select(".domain").remove();
 
-    let xAxisLabel = this._canvas.select("text.stream-axis-text");
+    let xAxisLabel = this._canvas.select("text.stream-xaxis-text");
     if (xAxisLabel.empty()) {
-      this._canvas.append("text")
-        .attr("class", "stream-axis-text")
+      xAxisLabel = this._canvas.append("text")
+        .attr("class", "stream-xaxis-text")
         .attr("text-anchor", "end")
         .attr("x", this.rw)
-        .attr("y", this.rh - 30 );
+        .attr("y", this.rh - 30 )
+        .on("click", () => {
+          this.ticksX = this.ticksX > 10 ? 5 : this.ticksX + 1;
+          this._scaling().draw();
+        });
+
+      xAxisLabel.append("title").text("Click to increase detail on the x axis");
     }
-    xAxisLabel.text(`Time (${this._data.labels?.axis.x})`);
+    xAxisLabel.text(this._data.labels?.axis.x);
     
     this._tip = this._canvas.select("text.stream-tip");
     if (this._tip.empty()) {
@@ -365,7 +372,7 @@ export class Streamchart {
    * Calculates the chart scale
    */
   private _scaling(): Streamchart {
-    this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]).nice(5);
+    this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]).nice(this.ticksX);
     this._scaleY = scaleLinear().domain(this._extentY).range([this.rh, 0]);
     return this;
   }

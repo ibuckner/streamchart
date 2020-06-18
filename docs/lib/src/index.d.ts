@@ -30,6 +30,7 @@ export declare class Streamchart {
     margin: TMargin;
     rh: number;
     rw: number;
+    ticksX: number;
     w: number;
     private _area;
     private _axis;
