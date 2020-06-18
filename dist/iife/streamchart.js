@@ -4685,7 +4685,7 @@ var chart = (function (exports) {
        * Calculates the chart scale
        */
       Streamchart.prototype._scaling = function () {
-          this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]);
+          this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]).nice(5);
           this._scaleY = linear$1().domain(this._extentY).range([this.rh, 0]);
           return this;
       };

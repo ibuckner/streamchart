@@ -365,7 +365,7 @@ export class Streamchart {
    * Calculates the chart scale
    */
   private _scaling(): Streamchart {
-    this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]);
+    this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]).nice(5);
     this._scaleY = scaleLinear().domain(this._extentY).range([this.rh, 0]);
     return this;
   }
