@@ -20,7 +20,10 @@ export declare type TStream = {
 export declare type TStreamchartOptions = {
     container: HTMLElement;
     data: TStream[];
+    formatY?: Intl.NumberFormat;
+    locale?: string;
     margin: TMargin;
+    ticksX?: number;
 };
 export declare class Streamchart {
     container: HTMLElement;

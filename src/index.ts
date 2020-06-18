@@ -31,7 +31,10 @@ export type TStream = {
 export type TStreamchartOptions = {
   container: HTMLElement,
   data: TStream[],
-  margin: TMargin
+  formatY?: Intl.NumberFormat,
+  locale?: string,
+  margin: TMargin,
+  ticksX?: number
 };
 
 export class Streamchart {
@@ -42,7 +45,7 @@ export class Streamchart {
   public margin: TMargin = { bottom: 20, left: 20, right: 30, top: 20 };
   public rh: number = 160;
   public rw: number = 150;
-  public ticksX: number = 5;
+  public ticksX: number = 10;
   public w: number = 200;
 
   private _area: any;
@@ -72,6 +75,20 @@ export class Streamchart {
       this.margin = m;
     }
 
+    if (options.locale !== undefined) {
+      this.locale = options.locale;
+    }
+
+    if (options.formatY !== undefined) {
+      this.formatY = options.formatY;
+    } else {
+      this.formatY = new Intl.NumberFormat(this.locale, { maximumFractionDigits: 2, style: "decimal" });
+    }
+
+    if (options.ticksX !== undefined) {
+      this.ticksX = options.ticksX;
+    }
+
     if (options.container !== undefined) {
       this.container = options.container;
     }
@@ -82,7 +99,6 @@ export class Streamchart {
     this.rh = this.h - this.margin.top - this.margin.bottom;
     this.rw = this.w - this.margin.left - this.margin.right;
 
-    this.formatY = new Intl.NumberFormat(this.locale, { maximumFractionDigits: 2, style: "decimal" });
     this._fp = new Intl.NumberFormat(this.locale, { maximumFractionDigits: 2, style: "percent" });
     
     this.data(options.data);
