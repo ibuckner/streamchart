@@ -36,7 +36,9 @@ export type TStreamchartOptions = {
 
 export class Streamchart {
   public container: HTMLElement = document.querySelector("body") as HTMLElement;
+  public formatY: Intl.NumberFormat;
   public h: number = 200;
+  public locale: string = "en-GB";
   public margin: TMargin = { bottom: 20, left: 20, right: 30, top: 20 };
   public rh: number = 160;
   public rw: number = 150;
@@ -50,7 +52,7 @@ export class Streamchart {
   private _dataStacked: any;
   private _extentX: [Date, Date] = [new Date(), new Date()];
   private _extentY: [number, number] = [0, 0];
-  private _fp: Intl.NumberFormat = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2, style: "percent" });
+  private _fp: Intl.NumberFormat;
   private _id: string = "";
   private _marker: any;
   private _scaleX: any;
@@ -71,12 +73,16 @@ export class Streamchart {
 
     if (options.container !== undefined) {
       this.container = options.container;
-      const box: DOMRect = this.container.getBoundingClientRect();
-      this.h = box.height;
-      this.w = box.width;
-      this.rh = this.h - this.margin.top - this.margin.bottom;
-      this.rw = this.w - this.margin.left - this.margin.right;
     }
+
+    const box: DOMRect = this.container.getBoundingClientRect();
+    this.h = box.height;
+    this.w = box.width;
+    this.rh = this.h - this.margin.top - this.margin.bottom;
+    this.rw = this.w - this.margin.left - this.margin.right;
+
+    this.formatY = new Intl.NumberFormat(this.locale, { maximumFractionDigits: 2, style: "decimal" });
+    this._fp = new Intl.NumberFormat(this.locale, { maximumFractionDigits: 2, style: "percent" });
     
     this.data(options.data);
   }
@@ -321,7 +327,7 @@ export class Streamchart {
     const dt: any = mouseDate - d0.data.period > d1.data.period - mouseDate ? d1 : d0;
     const v: number = Math.abs(dt[1] - dt[0]);
     const perc = this._fp.format((v / dt.data.sum));
-    this._tip.text(`${d.key}: ${v} (${perc} of total for ${(dt.data.period as Date).toLocaleDateString()})`);
+    this._tip.text(`${d.key}: ${this.formatY.format(v)} (${perc} of total for ${(dt.data.period as Date).toLocaleDateString(this.locale)})`);
 
     this._marker.select("line")
       .attr("x1", this._scaleX(dt.data.period))
@@ -370,8 +376,8 @@ export class Streamchart {
   private _scalingExtent(): Streamchart {
     let max: number | undefined = undefined;   
     this._extentX = extent(this._data.series, (d: TStreamSeries) => (d.period as Date)) as [Date, Date];
-    this._data.series.forEach((d: TStreamSeries) => max = Math.max(max === undefined ? 0 : max, ...d.values));
-    this._extentY = [-(max === undefined ? 0 : max), max === undefined ? 0 : max];
+    this._data.series.forEach((d: TStreamSeries) => max = Math.max(max === undefined ? 0 : max, d.sum as number));
+    this._extentY = [max === undefined ? 0 : -max, max === undefined ? 0 : max];
     return this;
   }
 }

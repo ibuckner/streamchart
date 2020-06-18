@@ -70,6 +70,8 @@ const streamchart = new Streamchart({
 
 ### Events
 
+stream-selected - emitted when user clicks on stream
+
 ### Methods
 
 ```javascript
@@ -95,8 +97,14 @@ streamchart.toString();
 streamchart.container;
 // parent element for chart
 
+streamchart.formatY
+// Intl.NumberFormat instance. Default is decimal
+
 streamchart.h;
 // height of chart
+
+streamchart.local
+// locale for formatting values. Default is en-GB
 
 streamchart.margin;
 // defines the border zone around the canvas

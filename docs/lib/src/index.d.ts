@@ -24,7 +24,9 @@ export declare type TStreamchartOptions = {
 };
 export declare class Streamchart {
     container: HTMLElement;
+    formatY: Intl.NumberFormat;
     h: number;
+    locale: string;
     margin: TMargin;
     rh: number;
     rw: number;
