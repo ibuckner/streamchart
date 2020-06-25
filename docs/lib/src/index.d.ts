@@ -1,86 +1,65 @@
 import { TMargin } from "@buckneri/spline";
-export declare type TStreamAxisLabel = {
-    x: string;
-    y?: string;
+export declare type TTreeSeries = {
+    category?: string;
+    color?: string;
+    label: string;
+    value: number;
 };
-export declare type TStreamLabels = {
-    series: string[];
-    axis: TStreamAxisLabel;
+export declare type TTree = {
+    series: TTreeSeries[];
 };
-export declare type TStreamSeries = {
-    period: string | Date;
-    sum?: number;
-    values: number[];
-};
-export declare type TStream = {
-    colors?: string[];
-    labels: TStreamLabels;
-    series: TStreamSeries[];
-};
-export declare type TStreamchartOptions = {
+export declare type TTreechartOptions = {
     container: HTMLElement;
-    data: TStream[];
-    formatY?: Intl.NumberFormat;
+    data: TTree;
+    formatValue?: Intl.NumberFormat;
     locale?: string;
     margin: TMargin;
-    ticksX?: number;
 };
-export declare class Streamchart {
+export declare class Treechart {
     container: HTMLElement;
-    formatY: Intl.NumberFormat;
+    formatValue: Intl.NumberFormat;
     h: number;
     locale: string;
     margin: TMargin;
     rh: number;
     rw: number;
-    ticksX: number;
     w: number;
-    private _area;
-    private _axis;
     private _canvas;
     private _color;
     private _data;
-    private _dataStacked;
-    private _extentX;
-    private _extentY;
-    private _fp;
+    private _extent;
     private _id;
-    private _marker;
-    private _scaleX;
-    private _scaleY;
+    private _opacity;
+    private _root;
+    private _scale;
     private _selected;
     private _svg;
-    private _tip;
-    constructor(options: TStreamchartOptions);
+    constructor(options: TTreechartOptions);
     /**
-     * Clears selection from Streamchart
+     * Clears selection from Treechart
      */
-    clearSelection(): Streamchart;
+    clearSelection(): Treechart;
     /**
-     * Saves data into Streamchart
-     * @param data - Streamchart data
+     * Saves data into Treechart
+     * @param data - Treechart data
      */
-    data(data: any): Streamchart;
+    data(data: any): Treechart;
     /**
      * Removes this chart from the DOM
      */
-    destroy(): Streamchart;
+    destroy(): Treechart;
     /**
-     * draws the Streamchart
+     * draws the Treechart
      */
-    draw(): Streamchart;
+    draw(): Treechart;
     /**
-     * Serialise the Streamchart data
+     * Serialise the Treechart data
      */
     toString(): string;
-    private _canvasMouseMoveHandler;
-    private _clearMarker;
-    private _drawAxes;
     private _drawCanvas;
-    private _drawMarker;
-    private _drawStream;
-    private _moveMarker;
-    private _streamClickHandler;
+    private _drawSeries;
+    private _nest;
+    private _seriesClickHandler;
     /**
      * Calculates the chart scale
      */

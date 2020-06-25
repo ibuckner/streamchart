@@ -1,71 +1,52 @@
-import { bisector, extent } from "d3-array";
-import { axisBottom } from "d3-axis";
-import { event, mouse, select, selectAll } from "d3-selection";
-import { scaleLinear, scaleOrdinal, scaleTime } from "d3-scale";
+import { extent } from "d3-array";
+import { nest } from "d3-collection";
+import { event, select, selectAll } from "d3-selection";
+import { scaleLinear, scaleOrdinal } from "d3-scale";
 import { schemePaired } from "d3-scale-chromatic";
-import { area, stack, stackOffsetSilhouette } from "d3-shape";
+import { hierarchy, treemap, treemapResquarify } from "d3-hierarchy";
 import { svg, TMargin } from "@buckneri/spline";
 
-export type TStreamAxisLabel = {
-  x: string,
-  y?: string
+export type TTreeSeries = {
+  category?: string,
+  color?: string,
+  label: string,
+  value: number
 };
 
-export type TStreamLabels = {
-  series: string[],
-  axis: TStreamAxisLabel
+export type TTree = {
+  series: TTreeSeries[]
 };
 
-export type TStreamSeries = {
-  period: string | Date,
-  sum?: number,
-  values: number[]
-};
-
-export type TStream = {
-  colors?: string[],
-  labels: TStreamLabels,
-  series: TStreamSeries[]
-};
-
-export type TStreamchartOptions = {
+export type TTreechartOptions = {
   container: HTMLElement,
-  data: TStream[],
-  formatY?: Intl.NumberFormat,
+  data: TTree,
+  formatValue?: Intl.NumberFormat,
   locale?: string,
-  margin: TMargin,
-  ticksX?: number
+  margin: TMargin
 };
 
-export class Streamchart {
+export class Treechart {
   public container: HTMLElement = document.querySelector("body") as HTMLElement;
-  public formatY: Intl.NumberFormat;
+  public formatValue: Intl.NumberFormat;
   public h: number = 200;
   public locale: string = "en-GB";
-  public margin: TMargin = { bottom: 20, left: 20, right: 30, top: 20 };
+  public margin: TMargin = { bottom: 20, left: 20, right: 20, top: 20 };
   public rh: number = 160;
   public rw: number = 150;
-  public ticksX: number = 10;
   public w: number = 200;
 
-  private _area: any;
-  private _axis: any;
   private _canvas: any;
   private _color = scaleOrdinal(schemePaired);
-  private _data: TStream = { labels: { axis: { x: "" }, series: [] }, series: []};
-  private _dataStacked: any;
-  private _extentX: [Date, Date] = [new Date(), new Date()];
-  private _extentY: [number, number] = [0, 0];
-  private _fp: Intl.NumberFormat;
+  private _data: TTree = { series: [] };
+  private _extent: [number, number] = [0, 0];
   private _id: string = "";
-  private _marker: any;
-  private _scaleX: any;
-  private _scaleY: any;
+  private _opacity: any;
+  private _root: any;
+  private _scale: any;
   private _selected: SVGElement | undefined;
   private _svg: any;
-  private _tip: any;
 
-  constructor(options: TStreamchartOptions) {
+  constructor(options: TTreechartOptions) {
     if (options.margin !== undefined) {
       let m = options.margin;
       m.left = isNaN(m.left) ? 0 : m.left;
@@ -79,14 +60,10 @@ export class Streamchart {
       this.locale = options.locale;
     }
 
-    if (options.formatY !== undefined) {
-      this.formatY = options.formatY;
+    if (options.formatValue !== undefined) {
+      this.formatValue = options.formatValue;
     } else {
-      this.formatY = new Intl.NumberFormat(this.locale, { maximumFractionDigits: 2, style: "decimal" });
-    }
-
-    if (options.ticksX !== undefined) {
-      this.ticksX = options.ticksX;
+      this.formatValue = new Intl.NumberFormat(this.locale, { maximumFractionDigits: 2, style: "decimal" });
     }
 
     if (options.container !== undefined) {
@@ -98,65 +75,46 @@ export class Streamchart {
     this.w = box.width;
     this.rh = this.h - this.margin.top - this.margin.bottom;
     this.rw = this.w - this.margin.left - this.margin.right;
-
-    this._fp = new Intl.NumberFormat(this.locale, { maximumFractionDigits: 2, style: "percent" });
     
     this.data(options.data);
   }
 
   /**
-   * Clears selection from Streamchart
+   * Clears selection from Treechart
    */
-  public clearSelection(): Streamchart {
+  public clearSelection(): Treechart {
     selectAll(".selected").classed("selected", false);
     selectAll(".fade").classed("fade", false);
-    select(".stream-tip").text("");
     this._selected = undefined;
-    this._clearMarker();
     return this;
   }
 
   /**
-   * Saves data into Streamchart
-   * @param data - Streamchart data
+   * Saves data into Treechart
+   * @param data - Treechart data
    */
-  public data(data: any): Streamchart {
+  public data(data: any): Treechart {
     this._data = data;
-    if (this._data.colors === undefined) {
-      this._data.colors = [];
-    }
-    if (this._data.colors.length === 0 && this._data.labels) {
-      this._data.labels.series.forEach((label: string) => {
-        this._data.colors?.push(this._color(label));
-      });
-    }
-    const sum = (accumulator: number, currentValue: number) => accumulator + currentValue;
-    const isDate: Function = (dd: any) => dd instanceof Date;
-    this._data.series.forEach(s => {
-      if (!isDate(s.period)) {
-        s.period = new Date(s.period);
-      }
-      s.sum = s.values.map(v => v).reduce(sum);
+    this._data.series.forEach((item: TTreeSeries) => {
+      item.color = this._color(item.category ? item.category : item.label);
     });
+
+    const dataNested = { name: "root", children: this._nest(this._data.series, (d: any) => d.category, (d: any) => d.label) };
+
+    const h = hierarchy(dataNested).sum((d: any) => d.value).sort((a: any, b: any) => b.value - a.value);
+
+    const tree = (d: any) => treemap()
+      .tile(treemapResquarify)
+      .size([this.rw, this.rh])
+      .padding(1)
+      .round(true)(h);
+
+    this._root = tree(dataNested);
   
     this._scalingExtent();
     this._scaling();
 
-    const st = stack()
-      .offset(stackOffsetSilhouette)
-      .keys(this._data.labels?.series as string[])
-      // @ts-ignore
-      .value((d: any, key: string) => {
-        let i: number = this._data.labels?.series.indexOf(key) as number;
-        return d.values[i];
-      });
-
-    this._dataStacked = st(this._data.series as any);
-
-    this._area = area()
-      .x((d: any) => this._scaleX(d.data.period))
-      .y0((d: any) => this._scaleY(d[0]))
-      .y1((d: any) => this._scaleY(d[1]));
+    this._opacity = scaleLinear().domain(this._extent).range([0.5, 0.9]);
 
     return this;
   }
@@ -164,25 +122,23 @@ export class Streamchart {
   /**
    * Removes this chart from the DOM
    */
-  public destroy(): Streamchart {
+  public destroy(): Treechart {
     select(this.container).select("svg").remove();
     return this;
   }
 
   /**
-   * draws the Streamchart
+   * draws the Treechart
    */
-  public draw(): Streamchart {
+  public draw(): Treechart {
     this._drawCanvas()
-      ._drawAxes()
-      ._drawStream()
-      ._drawMarker();
+        ._drawSeries();
     
     return this;
   }
 
   /**
-   * Serialise the Streamchart data
+   * Serialise the Treechart data
    */
   public toString(): string {
     let dt: string = this._data.series.map((n: any) => `${n}`).join("\n");
@@ -191,136 +147,71 @@ export class Streamchart {
 
   // ***** PRIVATE METHODS
 
-  private _canvasMouseMoveHandler(): void {
-    if (this._selected === undefined) {
-      this._clearMarker();
-    } else {
-      this._moveMarker(this._selected);
-    }
-  }
-
-  private _clearMarker(): void {
-    this._marker.select("line")
-      .attr("x1", 0)
-      .attr("x2", 0)
-      .attr("y1", 0)
-      .attr("y2", 0);
-
-    this._marker.selectAll("circle")
-      .attr("r", 0)
-      .attr("cx", 0)
-      .attr("cy", 0);
-  }
-
-  private _drawAxes(): Streamchart {
-    if (this._axis === undefined) {
-      this._axis = this._canvas.append("g")
-        .attr("class", "stream-axis")
-        .attr("transform", `translate(0,${this.rh * 0.9})`);
-    }
-
-    this._axis.call(
-      axisBottom(this._scaleX).tickSize(-this.rh * 0.7)
-    ).select(".domain").remove();
-
-    let xAxisLabel = this._canvas.select("text.stream-xaxis-text");
-    if (xAxisLabel.empty()) {
-      xAxisLabel = this._canvas.append("text")
-        .attr("class", "stream-xaxis-text")
-        .attr("text-anchor", "end")
-        .attr("x", this.rw)
-        .attr("y", this.rh - 30 )
-        .on("click", () => {
-          this.ticksX = this.ticksX > 10 ? 5 : this.ticksX + 1;
-          this._scaling().draw();
-        });
-
-      xAxisLabel.append("title").text("Click to increase detail on the x axis");
-    }
-    xAxisLabel.text(this._data.labels?.axis.x);
-    
-    this._tip = this._canvas.select("text.stream-tip");
-    if (this._tip.empty()) {
-      this._tip = this._canvas.append("text")
-        .attr("class", "stream-tip")
-        .attr("x", 0)
-        .attr("y", (this.margin.top * 2) + 1);
-    }
-
-    return this;
-  }
-
-  private _drawCanvas(): Streamchart {
-    if (select(this.container).select("svg.streamchart").empty()) {
-      this._id = "streamchart" + Array.from(document.querySelectorAll(".streamchart")).length;
+  private _drawCanvas(): Treechart {
+    if (select(this.container).select("svg.treechart").empty()) {
+      this._id = "treechart" + Array.from(document.querySelectorAll(".treechart")).length;
       let sg: SVGElement | null = svg(this.container, {
-        class: "streamchart",
+        class: "treechart",
         height: this.h,
         id: this._id,
         margin: this.margin,
         width: this.w
       }) as SVGElement;
       this._svg = select(sg)
-        .on("click", () => this.clearSelection())
-        .on("mousemove", () => this._canvasMouseMoveHandler());
+        .on("click", () => this.clearSelection());
       this._canvas = this._svg.select(".canvas");
     }
 
     return this;
   }
 
-  private _drawMarker(): Streamchart {
-    if (this._marker === undefined) {
-      this._marker = this._canvas.append("g")
-        .attr("id", (d: any, i: number) => `${this._id}_mark${i}`);
-
-      this._marker.append("line")
-        .attr("class", "stream-marker")
-        .attr("x1", 0).attr("x2", 0)
-        .attr("y1", 0).attr("y2", 0);
-
-      this._marker.append("circle")
-        .attr("class", "stream-marker first")
-        .attr("r", 0).attr("cx", 0).attr("cy", 0);
-
-      this._marker.append("circle")
-        .attr("class", "stream-marker second")
-        .attr("r", 0).attr("cx", 0).attr("cy", 0);
-    }
-
-    return this;
-  }
-
-  private _drawStream(): Streamchart {
-    let n: number = 0;
-    let streams: any;
-
-    let g = this._canvas.select("g.streams");
+  private _drawSeries(): Treechart {
+    let g = this._canvas.select("g.series");
     if (g.empty()) {
-      g = this._canvas.append("g").attr("class", "streams");
+      g = this._canvas.append("g").attr("class", "series");
     }
-
-    g.selectAll("path.streamchart")
-      .data(this._dataStacked)
+    
+    g.selectAll("g.box")
+      .data(this._root.leaves())
       .join(
         (enter: any) => {
-          streams = enter.append("path")
+          const leaf = enter.append("g")
+            .attr("class", "box")
+            .attr("transform", (d: any) => `translate(${d.x0},${d.y0})`);
+
+          leaf.append("title")
+            .text((d: any) => `${d.data.category} -> ${d.data.label} \n${this.formatValue.format(d.value)}`);
+
+          leaf.append("rect")
             .attr("id", (d: any, i: number) => `${this._id}_p${i}`)
-            .attr("class", "streamchart")
-            .attr("d", this._area as any)
-            .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke")
-            .on("click", () => this._streamClickHandler(event.target))
-            .on("mousemove", (d: any, i: number, n: Node[]) => {
-              event.stopPropagation();
-              this._moveMarker((this._selected ? this._selected : n[i]) as SVGElement);
-            });
-          streams.append("title").text((d: any) => `${d.key}`);
+            .attr("class", "box")
+            .attr("fill", (d: any) => d.data.color)
+            .attr("fill-opacity", (d: any) => this._opacity(d.data.value))
+            .attr("width", (d: any) => d.x1 - d.x0)
+            .attr("height", (d: any) => d.y1 - d.y0)
+            .on("click", (d: any, i: number, nodes: Node[]) => this._seriesClickHandler(nodes[i] as Element));
+
+          leaf.append("clipPath")
+            .attr("id", (d: any, i: number) => `${this._id}_clip${i}`)
+            .append("rect")
+              .attr("x", 0).attr("y", 0)
+              .attr("width", (d: any) => d.x1 - d.x0)
+              .attr("height", (d: any) => d.y1 - d.y0);
+
+          leaf.append("text")
+            .attr("class", "box")
+            .attr("font-size", "smaller")
+            .attr("clip-path", (d: any, i: number) => `url(#${this._id}_clip${i})`)
+            .selectAll("tspan")
+            .data((d: any) => d.data.label.split(/(?=[A-Z][a-z])|\s+/g).concat(this.formatValue.format(d.value)))
+            .join("tspan")
+              .attr("x", 3)
+              .attr("y", (d: any, i: number, nodes: Node[]) => `${(i === nodes.length - 1 ? 1 : 0) * 0.3 + 1.1 + i * 0.9}em`)
+              .attr("fill-opacity", (d: any, i: number, nodes: any[]) => i === nodes.length - 1 ? 0.7 : null)
+              .text((d: any) => d);
         },
         (update: any) => {
-          update.attr("id", (d: any, i: number) => `${this._id}_p${i}`)
-            .attr("d", this._area as any)
-            .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke");
-          update.select("title").text((d: any) => `${d.key}`);
+          update.attr("transform", (d: any) => `translate(${d.x0},${d.y0})`);
         },
         (exit: any) => exit.remove()
       );
@@ -328,52 +219,31 @@ export class Streamchart {
     return this;
   }
 
-  private _moveMarker(el: SVGElement): void {
-    const d: any = select(el).datum();
-    const mxy = mouse(el as any);
-    const mouseDate = this._scaleX.invert(mxy[0]);
-    if (mouseDate === undefined) {
-      return;
+  private _nest(data: any, ...keys: any): any {
+    const n = nest();
+    for (const key of keys) {
+      n.key(key);
     }
-    const dates = this._data.series.map(s => [s.period, s.sum]);
-
-    const bisect = bisector((d: any) => d[0]);
-    let m = bisect.left(dates, mouseDate);
-    if (m === 0) {
-      m = 1;
-    } else if (m > d.length - 1) {
-      m = d.length - 1; 
+    function hierarchy({key, values}: any, depth: any) {
+      return {
+        name: key,
+        children: depth < keys.length - 1
+            ? values.map((d: any) => hierarchy(d, depth + 1)) 
+            : values
+      };
     }
-
-    const d0 = d[m - 1];
-    const d1 = d[m];
-    const dt: any = mouseDate - d0.data.period > d1.data.period - mouseDate ? d1 : d0;
-    const v: number = Math.abs(dt[1] - dt[0]);
-    const perc = this._fp.format((v / dt.data.sum));
-    this._tip.text(`${d.key}: ${this.formatY.format(v)} (${perc} of total for ${(dt.data.period as Date).toLocaleDateString(this.locale)})`);
-
-    this._marker.select("line")
-      .attr("x1", this._scaleX(dt.data.period))
-      .attr("x2", this._scaleX(dt.data.period))
-      .attr("y1", this._scaleY(dt[0]))
-      .attr("y2", this._scaleY(dt[1]));
-
-    this._marker.select("circle.first")
-      .attr("r", 5)
-      .attr("cx", this._scaleX(dt.data.period))
-      .attr("cy", this._scaleY(dt[0]));
-    
-    this._marker.select("circle.second")
-      .attr("r", 5)
-      .attr("cx", this._scaleX(dt.data.period))
-      .attr("cy", this._scaleY(dt[1]));
+    return n.entries(data).map(d => hierarchy(d, 0));
   }
 
-  private _streamClickHandler(el: Element): void {
+  private _seriesClickHandler(el: Element): void {
     event.stopPropagation();
+    const exit = el === this._selected ? true : false;
     this.clearSelection();
-    window.dispatchEvent(new CustomEvent("stream-selected", { detail: el }));
-    selectAll("path.streamchart")
+    if (exit) {
+      return;
+    }
+    window.dispatchEvent(new CustomEvent("tree-selected", { detail: el }));
+    selectAll("rect.box")
       .each((d: any, i: number, n: any) => {
         if (n[i] === el) {
           select(el).classed("selected", true);
@@ -387,20 +257,16 @@ export class Streamchart {
   /**
    * Calculates the chart scale
    */
-  private _scaling(): Streamchart {
-    this._scaleX = scaleTime().domain(this._extentX).range([0, this.rw]).nice(this.ticksX);
-    this._scaleY = scaleLinear().domain(this._extentY).range([this.rh, 0]);
+  private _scaling(): Treechart {
+    this._scale = scaleLinear().domain(this._extent).range([this.rh, 0]);
     return this;
   }
 
   /**
    * Determines the minimum and maximum extent values used by scale
    */
-  private _scalingExtent(): Streamchart {
-    let max: number | undefined = undefined;   
-    this._extentX = extent(this._data.series, (d: TStreamSeries) => (d.period as Date)) as [Date, Date];
-    this._data.series.forEach((d: TStreamSeries) => max = Math.max(max === undefined ? 0 : max, d.sum as number));
-    this._extentY = [max === undefined ? 0 : -max, max === undefined ? 0 : max];
+  private _scalingExtent(): Treechart {
+    this._extent = extent(this._data.series, (d: TTreeSeries) => d.value) as [number, number];
     return this;
   }
 }
