@@ -30,7 +30,7 @@ export type TStream = {
 
 export type TStreamchartOptions = {
   container: HTMLElement,
-  data: TStream[],
+  data: TStream,
   formatY?: Intl.NumberFormat,
   locale?: string,
   margin: TMargin,

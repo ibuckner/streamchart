@@ -19,7 +19,7 @@ export declare type TStream = {
 };
 export declare type TStreamchartOptions = {
     container: HTMLElement;
-    data: TStream[];
+    data: TStream;
     formatY?: Intl.NumberFormat;
     locale?: string;
     margin: TMargin;

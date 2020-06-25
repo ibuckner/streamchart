@@ -103,7 +103,7 @@ streamchart.formatY
 streamchart.h;
 // height of chart
 
-streamchart.local
+streamchart.locale
 // locale for formatting values. Default is en-GB
 
 streamchart.margin;
