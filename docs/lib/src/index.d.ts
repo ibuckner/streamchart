@@ -31,7 +31,6 @@ export declare class Treechart {
     private _id;
     private _opacity;
     private _root;
-    private _scale;
     private _selected;
     private _svg;
     constructor(options: TTreechartOptions);
@@ -60,10 +59,6 @@ export declare class Treechart {
     private _drawSeries;
     private _nest;
     private _seriesClickHandler;
-    /**
-     * Calculates the chart scale
-     */
-    private _scaling;
     /**
      * Determines the minimum and maximum extent values used by scale
      */

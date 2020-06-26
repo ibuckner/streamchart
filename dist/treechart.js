@@ -3422,7 +3422,6 @@ var Treechart = /** @class */ (function () {
             .round(true)(h); };
         this._root = tree();
         this._scalingExtent();
-        this._scaling();
         this._opacity = linear$1().domain(this._extent).range([0.5, 0.9]);
         return this;
     };
@@ -3550,13 +3549,6 @@ var Treechart = /** @class */ (function () {
                 select(n[i]).classed("fade", true);
             }
         });
-    };
-    /**
-     * Calculates the chart scale
-     */
-    Treechart.prototype._scaling = function () {
-        this._scale = linear$1().domain(this._extent).range([this.rh, 0]);
-        return this;
     };
     /**
      * Determines the minimum and maximum extent values used by scale
