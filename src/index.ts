@@ -42,6 +42,7 @@ export class Treechart {
   private _id: string = "";
   private _opacity: any;
   private _root: any;
+  private _scale: any;
   private _selected: SVGElement | undefined;
   private _svg: any;
 
@@ -111,6 +112,7 @@ export class Treechart {
     this._root = tree(dataNested);
   
     this._scalingExtent();
+    this._scaling();
 
     this._opacity = scaleLinear().domain(this._extent).range([0.5, 0.9]);
 
@@ -250,6 +252,14 @@ export class Treechart {
           select(n[i]).classed("fade", true);
         }
       });
+  }
+
+  /**
+   * Calculates the chart scale
+   */
+  private _scaling(): Treechart {
+    this._scale = scaleLinear().domain(this._extent).range([this.rh, 0]);
+    return this;
   }
 
   /**
