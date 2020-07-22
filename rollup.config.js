@@ -12,17 +12,17 @@ export default [
 		},
 	  output: [
 			{
-				file: "dist/treechart.js",
+				file: "dist/streamchart.js",
 				format: "es",
 				esModule: true
 			},
 			{
-				file: "dist/iife/treechart.js",
+				file: "dist/iife/streamchart.js",
 				format: "iife",
 				name: "chart"
 			},
 			{
-				file: "docs/lib/treechart.js",
+				file: "docs/lib/streamchart.js",
 				format: "iife",
 				name: "chart"
 			}
