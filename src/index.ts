@@ -1,6 +1,6 @@
 import { bisector, extent } from "d3-array";
 import { axisBottom } from "d3-axis";
-import { event, mouse, select, selectAll } from "d3-selection";
+import { pointer, select, selectAll } from "d3-selection";
 import { scaleLinear, scaleOrdinal, scaleTime } from "d3-scale";
 import { schemePaired } from "d3-scale-chromatic";
 import { area, stack, stackOffsetSilhouette } from "d3-shape";
@@ -309,10 +309,10 @@ export class Streamchart {
             .attr("class", "streamchart")
             .attr("d", this._area as any)
             .style("fill", () => this._data.colors ? this._data.colors[n++] : "whitesmoke")
-            .on("click", () => this._streamClickHandler(event.target))
-            .on("mousemove", (d: any, i: number, n: Node[]) => {
+            .on("click", (event: any) => this._streamClickHandler(event))
+            .on("mousemove", (event: any) => {
               event.stopPropagation();
-              this._moveMarker((this._selected ? this._selected : n[i]) as SVGElement);
+              this._moveMarker(event);
             });
           streams.append("title").text((d: any) => `${d.key}`);
         },
@@ -328,10 +328,11 @@ export class Streamchart {
     return this;
   }
 
-  private _moveMarker(el: SVGElement): void {
+  private _moveMarker(event: any): void {
+    const el = (this._selected ? this._selected : event.target) as SVGElement;
+    const [x, y] = pointer(event);
     const d: any = select(el).datum();
-    const mxy = mouse(el as any);
-    const mouseDate = this._scaleX.invert(mxy[0]);
+    const mouseDate = this._scaleX.invert(x);
     if (mouseDate === undefined) {
       return;
     }
@@ -369,8 +370,10 @@ export class Streamchart {
       .attr("cy", this._scaleY(dt[1]));
   }
 
-  private _streamClickHandler(el: Element): void {
+  private _streamClickHandler(event: any): void {
     event.stopPropagation();
+    const el = event.target;
+
     this.clearSelection();
     window.dispatchEvent(new CustomEvent("stream-selected", { detail: el }));
     selectAll("path.streamchart")
