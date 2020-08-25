@@ -30,14 +30,12 @@ export declare class Streamchart extends Basechart {
     ticksX: number;
     private _area;
     private _axis;
-    private _canvas;
     private _data;
     private _dataStacked;
     private _extentX;
     private _extentY;
     private _fp;
     private _marker;
-    private _svg;
     private _tip;
     constructor(options: TStreamchartOptions);
     /**
