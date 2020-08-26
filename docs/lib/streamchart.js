@@ -5446,6 +5446,7 @@ var chart = (function (exports) {
       clearSelection() {
           selectAll$1(".selected").classed("selected", false);
           selectAll$1(".fade").classed("fade", false);
+          return this;
       }
       /**
        * Removes this chart from the DOM
@@ -5455,6 +5456,10 @@ var chart = (function (exports) {
           return this;
       }
       draw() {
+          this._drawCanvas();
+          return this;
+      }
+      _drawCanvas() {
           if (select$1(this.container).select("svg").empty()) {
               let sg = svg(this.container, {
                   height: this.h,
