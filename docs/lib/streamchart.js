@@ -50,6 +50,14 @@ var chart = (function (exports) {
     return (d, x) => ascending(f(d), x);
   }
 
+  function number(x) {
+    return x === null ? NaN : +x;
+  }
+
+  const ascendingBisect = bisector(ascending);
+  const bisectRight = ascendingBisect.right;
+  const bisectCenter = bisector(number).center;
+
   function extent(values, valueof) {
     let min;
     let max;
@@ -80,6 +88,59 @@ var chart = (function (exports) {
     return [min, max];
   }
 
+  var e10 = Math.sqrt(50),
+      e5 = Math.sqrt(10),
+      e2 = Math.sqrt(2);
+
+  function ticks(start, stop, count) {
+    var reverse,
+        i = -1,
+        n,
+        ticks,
+        step;
+
+    stop = +stop, start = +start, count = +count;
+    if (start === stop && count > 0) return [start];
+    if (reverse = stop < start) n = start, start = stop, stop = n;
+    if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
+
+    if (step > 0) {
+      start = Math.ceil(start / step);
+      stop = Math.floor(stop / step);
+      ticks = new Array(n = Math.ceil(stop - start + 1));
+      while (++i < n) ticks[i] = (start + i) * step;
+    } else {
+      step = -step;
+      start = Math.ceil(start * step);
+      stop = Math.floor(stop * step);
+      ticks = new Array(n = Math.ceil(stop - start + 1));
+      while (++i < n) ticks[i] = (start + i) / step;
+    }
+
+    if (reverse) ticks.reverse();
+
+    return ticks;
+  }
+
+  function tickIncrement(start, stop, count) {
+    var step = (stop - start) / Math.max(0, count),
+        power = Math.floor(Math.log(step) / Math.LN10),
+        error = step / Math.pow(10, power);
+    return power >= 0
+        ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
+        : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
+  }
+
+  function tickStep(start, stop, count) {
+    var step0 = Math.abs(stop - start) / Math.max(0, count),
+        step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
+        error = step0 / step1;
+    if (error >= e10) step1 *= 10;
+    else if (error >= e5) step1 *= 5;
+    else if (error >= e2) step1 *= 2;
+    return stop < start ? -step1 : step1;
+  }
+
   var slice = Array.prototype.slice;
 
   function identity(x) {
@@ -100,7 +161,7 @@ var chart = (function (exports) {
     return "translate(0," + (y + 0.5) + ")";
   }
 
-  function number(scale) {
+  function number$1(scale) {
     return d => +scale(d);
   }
 
@@ -134,7 +195,7 @@ var chart = (function (exports) {
           range = scale.range(),
           range0 = +range[0] + 0.5,
           range1 = +range[range.length - 1] + 0.5,
-          position = (scale.bandwidth ? center : number)(scale.copy()),
+          position = (scale.bandwidth ? center : number$1)(scale.copy()),
           selection = context.selection ? context.selection() : context,
           path = selection.selectAll(".domain").data([null]),
           tick = selection.selectAll(".tick").data(values, scale).order(),
@@ -1176,111 +1237,6 @@ var chart = (function (exports) {
         : new Selection([selector == null ? [] : array(selector)], root);
   }
 
-  function ascending$2(a, b) {
-    return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
-  }
-
-  function bisector$1(f) {
-    let delta = f;
-    let compare = f;
-
-    if (f.length === 1) {
-      delta = (d, x) => f(d) - x;
-      compare = ascendingComparator$1(f);
-    }
-
-    function left(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if (compare(a[mid], x) < 0) lo = mid + 1;
-        else hi = mid;
-      }
-      return lo;
-    }
-
-    function right(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if (compare(a[mid], x) > 0) hi = mid;
-        else lo = mid + 1;
-      }
-      return lo;
-    }
-
-    function center(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      const i = left(a, x, lo, hi);
-      return i > lo && delta(a[i - 1], x) > -delta(a[i], x) ? i - 1 : i;
-    }
-
-    return {left, center, right};
-  }
-
-  function ascendingComparator$1(f) {
-    return (d, x) => ascending$2(f(d), x);
-  }
-
-  var ascendingBisect = bisector$1(ascending$2);
-  var bisectRight = ascendingBisect.right;
-
-  var e10 = Math.sqrt(50),
-      e5 = Math.sqrt(10),
-      e2 = Math.sqrt(2);
-
-  function ticks(start, stop, count) {
-    var reverse,
-        i = -1,
-        n,
-        ticks,
-        step;
-
-    stop = +stop, start = +start, count = +count;
-    if (start === stop && count > 0) return [start];
-    if (reverse = stop < start) n = start, start = stop, stop = n;
-    if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
-
-    if (step > 0) {
-      start = Math.ceil(start / step);
-      stop = Math.floor(stop / step);
-      ticks = new Array(n = Math.ceil(stop - start + 1));
-      while (++i < n) ticks[i] = (start + i) * step;
-    } else {
-      step = -step;
-      start = Math.ceil(start * step);
-      stop = Math.floor(stop * step);
-      ticks = new Array(n = Math.ceil(stop - start + 1));
-      while (++i < n) ticks[i] = (start + i) / step;
-    }
-
-    if (reverse) ticks.reverse();
-
-    return ticks;
-  }
-
-  function tickIncrement(start, stop, count) {
-    var step = (stop - start) / Math.max(0, count),
-        power = Math.floor(Math.log(step) / Math.LN10),
-        error = step / Math.pow(10, power);
-    return power >= 0
-        ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
-        : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
-  }
-
-  function tickStep(start, stop, count) {
-    var step0 = Math.abs(stop - start) / Math.max(0, count),
-        step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
-        error = step0 / step1;
-    if (error >= e10) step1 *= 10;
-    else if (error >= e5) step1 *= 5;
-    else if (error >= e2) step1 *= 2;
-    return stop < start ? -step1 : step1;
-  }
-
   function initRange(domain, range) {
     switch (arguments.length) {
       case 0: break;
@@ -1866,13 +1822,13 @@ var chart = (function (exports) {
     };
   }
 
-  function constant$2(x) {
+  function constants(x) {
     return function() {
       return x;
     };
   }
 
-  function number$1(x) {
+  function number$2(x) {
     return +x;
   }
 
@@ -1885,7 +1841,7 @@ var chart = (function (exports) {
   function normalize(a, b) {
     return (b -= (a = +a))
         ? function(x) { return (x - a) / b; }
-        : constant$2(isNaN(b) ? NaN : 0.5);
+        : constants(isNaN(b) ? NaN : 0.5);
   }
 
   function clamper(a, b) {
@@ -1964,7 +1920,7 @@ var chart = (function (exports) {
     };
 
     scale.domain = function(_) {
-      return arguments.length ? (domain = Array.from(_, number$1), rescale()) : domain.slice();
+      return arguments.length ? (domain = Array.from(_, number$2), rescale()) : domain.slice();
     };
 
     scale.range = function(_) {
@@ -3398,7 +3354,7 @@ var chart = (function (exports) {
     return new Date(t);
   }
 
-  function number$2(t) {
+  function number$3(t) {
     return t instanceof Date ? +t : +new Date(+t);
   }
 
@@ -3455,7 +3411,7 @@ var chart = (function (exports) {
       // Otherwise, assume interval is already a time interval and use it.
       if (typeof interval === "number") {
         var target = Math.abs(stop - start) / interval,
-            i = bisector$1(function(i) { return i[2]; }).right(tickIntervals, target),
+            i = bisector(function(i) { return i[2]; }).right(tickIntervals, target),
             step;
         if (i === tickIntervals.length) {
           step = tickStep(start / durationYear, stop / durationYear, interval);
@@ -3479,7 +3435,7 @@ var chart = (function (exports) {
     };
 
     scale.domain = function(_) {
-      return arguments.length ? domain(Array.from(_, number$2)) : domain().map(date$1);
+      return arguments.length ? domain(Array.from(_, number$3)) : domain().map(date$1);
     };
 
     scale.ticks = function(interval) {
@@ -3512,7 +3468,7 @@ var chart = (function (exports) {
     return scale;
   }
 
-  function scaleTime() {
+  function time() {
     return initRange.apply(calendar(year, month, sunday, day, hour, minute, second, millisecond, timeFormat).domain([new Date(2000, 0, 1), new Date(2000, 0, 2)]), arguments);
   }
 
@@ -3645,7 +3601,7 @@ var chart = (function (exports) {
     }
   };
 
-  function constant$3(x) {
+  function constant$2(x) {
     return function constant() {
       return x;
     };
@@ -3698,13 +3654,13 @@ var chart = (function (exports) {
   }
 
   function line(x$1, y$1) {
-    var defined = constant$3(true),
+    var defined = constant$2(true),
         context = null,
         curve = curveLinear,
         output = null;
 
-    x$1 = typeof x$1 === "function" ? x$1 : (x$1 === undefined) ? x : constant$3(x$1);
-    y$1 = typeof y$1 === "function" ? y$1 : (y$1 === undefined) ? y : constant$3(y$1);
+    x$1 = typeof x$1 === "function" ? x$1 : (x$1 === undefined) ? x : constant$2(x$1);
+    y$1 = typeof y$1 === "function" ? y$1 : (y$1 === undefined) ? y : constant$2(y$1);
 
     function line(data) {
       var i,
@@ -3727,15 +3683,15 @@ var chart = (function (exports) {
     }
 
     line.x = function(_) {
-      return arguments.length ? (x$1 = typeof _ === "function" ? _ : constant$3(+_), line) : x$1;
+      return arguments.length ? (x$1 = typeof _ === "function" ? _ : constant$2(+_), line) : x$1;
     };
 
     line.y = function(_) {
-      return arguments.length ? (y$1 = typeof _ === "function" ? _ : constant$3(+_), line) : y$1;
+      return arguments.length ? (y$1 = typeof _ === "function" ? _ : constant$2(+_), line) : y$1;
     };
 
     line.defined = function(_) {
-      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$3(!!_), line) : defined;
+      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$2(!!_), line) : defined;
     };
 
     line.curve = function(_) {
@@ -3751,14 +3707,14 @@ var chart = (function (exports) {
 
   function area(x0, y0, y1) {
     var x1 = null,
-        defined = constant$3(true),
+        defined = constant$2(true),
         context = null,
         curve = curveLinear,
         output = null;
 
-    x0 = typeof x0 === "function" ? x0 : (x0 === undefined) ? x : constant$3(+x0);
-    y0 = typeof y0 === "function" ? y0 : (y0 === undefined) ? constant$3(0) : constant$3(+y0);
-    y1 = typeof y1 === "function" ? y1 : (y1 === undefined) ? y : constant$3(+y1);
+    x0 = typeof x0 === "function" ? x0 : (x0 === undefined) ? x : constant$2(+x0);
+    y0 = typeof y0 === "function" ? y0 : (y0 === undefined) ? constant$2(0) : constant$2(+y0);
+    y1 = typeof y1 === "function" ? y1 : (y1 === undefined) ? y : constant$2(+y1);
 
     function area(data) {
       var i,
@@ -3803,27 +3759,27 @@ var chart = (function (exports) {
     }
 
     area.x = function(_) {
-      return arguments.length ? (x0 = typeof _ === "function" ? _ : constant$3(+_), x1 = null, area) : x0;
+      return arguments.length ? (x0 = typeof _ === "function" ? _ : constant$2(+_), x1 = null, area) : x0;
     };
 
     area.x0 = function(_) {
-      return arguments.length ? (x0 = typeof _ === "function" ? _ : constant$3(+_), area) : x0;
+      return arguments.length ? (x0 = typeof _ === "function" ? _ : constant$2(+_), area) : x0;
     };
 
     area.x1 = function(_) {
-      return arguments.length ? (x1 = _ == null ? null : typeof _ === "function" ? _ : constant$3(+_), area) : x1;
+      return arguments.length ? (x1 = _ == null ? null : typeof _ === "function" ? _ : constant$2(+_), area) : x1;
     };
 
     area.y = function(_) {
-      return arguments.length ? (y0 = typeof _ === "function" ? _ : constant$3(+_), y1 = null, area) : y0;
+      return arguments.length ? (y0 = typeof _ === "function" ? _ : constant$2(+_), y1 = null, area) : y0;
     };
 
     area.y0 = function(_) {
-      return arguments.length ? (y0 = typeof _ === "function" ? _ : constant$3(+_), area) : y0;
+      return arguments.length ? (y0 = typeof _ === "function" ? _ : constant$2(+_), area) : y0;
     };
 
     area.y1 = function(_) {
-      return arguments.length ? (y1 = _ == null ? null : typeof _ === "function" ? _ : constant$3(+_), area) : y1;
+      return arguments.length ? (y1 = _ == null ? null : typeof _ === "function" ? _ : constant$2(+_), area) : y1;
     };
 
     area.lineX0 =
@@ -3840,7 +3796,7 @@ var chart = (function (exports) {
     };
 
     area.defined = function(_) {
-      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$3(!!_), area) : defined;
+      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$2(!!_), area) : defined;
     };
 
     area.curve = function(_) {
@@ -3881,7 +3837,7 @@ var chart = (function (exports) {
   }
 
   function stack() {
-    var keys = constant$3([]),
+    var keys = constant$2([]),
         order = none$2,
         offset = none$1,
         value = stackValue;
@@ -3906,15 +3862,15 @@ var chart = (function (exports) {
     }
 
     stack.keys = function(_) {
-      return arguments.length ? (keys = typeof _ === "function" ? _ : constant$3(Array.from(_)), stack) : keys;
+      return arguments.length ? (keys = typeof _ === "function" ? _ : constant$2(Array.from(_)), stack) : keys;
     };
 
     stack.value = function(_) {
-      return arguments.length ? (value = typeof _ === "function" ? _ : constant$3(+_), stack) : value;
+      return arguments.length ? (value = typeof _ === "function" ? _ : constant$2(+_), stack) : value;
     };
 
     stack.order = function(_) {
-      return arguments.length ? (order = _ == null ? none$2 : typeof _ === "function" ? _ : constant$3(Array.from(_)), stack) : order;
+      return arguments.length ? (order = _ == null ? none$2 : typeof _ === "function" ? _ : constant$2(Array.from(_)), stack) : order;
     };
 
     stack.offset = function(_) {
@@ -4118,7 +4074,7 @@ var chart = (function (exports) {
     querySelectorAll: function(selector) { return this._parent.querySelectorAll(selector); }
   };
 
-  function constant$4(x) {
+  function constant$3(x) {
     return function() {
       return x;
     };
@@ -4205,7 +4161,7 @@ var chart = (function (exports) {
         parents = this._parents,
         groups = this._groups;
 
-    if (typeof value !== "function") value = constant$4(value);
+    if (typeof value !== "function") value = constant$3(value);
 
     for (var m = groups.length, update = new Array(m), enter = new Array(m), exit = new Array(m), j = 0; j < m; ++j) {
       var parent = parents[j],
@@ -4282,7 +4238,7 @@ var chart = (function (exports) {
   }
 
   function selection_sort$1(compare) {
-    if (!compare) compare = ascending$3;
+    if (!compare) compare = ascending$2;
 
     function compareNode(a, b) {
       return a && b ? compare(a.__data__, b.__data__) : !a - !b;
@@ -4300,7 +4256,7 @@ var chart = (function (exports) {
     return new Selection$1(sortgroups, this._parents).order();
   }
 
-  function ascending$3(a, b) {
+  function ascending$2(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
@@ -5192,7 +5148,7 @@ var chart = (function (exports) {
       'blur',
       'focus'
   ];
-  var time = function (timeout) {
+  var time$1 = function (timeout) {
       if (timeout === void 0) { timeout = 0; }
       return Date.now() + timeout;
   };
@@ -5210,7 +5166,7 @@ var chart = (function (exports) {
               return;
           }
           scheduled = true;
-          var until = time(timeout);
+          var until = time$1(timeout);
           queueResizeObserver(function () {
               var elementsHaveResized = false;
               try {
@@ -5218,7 +5174,7 @@ var chart = (function (exports) {
               }
               finally {
                   scheduled = false;
-                  timeout = until - time();
+                  timeout = until - time$1();
                   if (!isWatching()) {
                       return;
                   }
@@ -5772,7 +5728,7 @@ var chart = (function (exports) {
        * Calculates the chart scale
        */
       _scaling() {
-          this.scale.x = scaleTime().domain(this._extentX).range([0, this.rw]).nice(this.ticksX);
+          this.scale.x = time().domain(this._extentX).range([0, this.rw]).nice(this.ticksX);
           this.scale.y = linear$1().domain(this._extentY).range([this.rh, 0]);
           return this;
       }
