@@ -5746,6 +5746,8 @@ var chart = (function (exports) {
 
   exports.Streamchart = Streamchart;
 
+  Object.defineProperty(exports, '__esModule', { value: true });
+
   return exports;
 
 }({}));
