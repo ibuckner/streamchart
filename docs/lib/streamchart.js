@@ -1,7 +1,7 @@
 var chart = (function (exports) {
   'use strict';
 
-  function ascending(a, b) {
+  function ascending$2(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
@@ -47,16 +47,16 @@ var chart = (function (exports) {
   }
 
   function ascendingComparator(f) {
-    return (d, x) => ascending(f(d), x);
+    return (d, x) => ascending$2(f(d), x);
   }
 
-  function number(x) {
+  function number$3(x) {
     return x === null ? NaN : +x;
   }
 
-  const ascendingBisect = bisector(ascending);
+  const ascendingBisect = bisector(ascending$2);
   const bisectRight = ascendingBisect.right;
-  const bisectCenter = bisector(number).center;
+  bisector(number$3).center;
 
   function extent(values, valueof) {
     let min;
@@ -143,7 +143,7 @@ var chart = (function (exports) {
 
   var slice = Array.prototype.slice;
 
-  function identity(x) {
+  function identity$2(x) {
     return x;
   }
 
@@ -151,26 +151,24 @@ var chart = (function (exports) {
       right = 2,
       bottom = 3,
       left = 4,
-      epsilon = 1e-6;
+      epsilon$1 = 1e-6;
 
   function translateX(x) {
-    return "translate(" + (x + 0.5) + ",0)";
+    return "translate(" + x + ",0)";
   }
 
   function translateY(y) {
-    return "translate(0," + (y + 0.5) + ")";
+    return "translate(0," + y + ")";
   }
 
-  function number$1(scale) {
+  function number$2(scale) {
     return d => +scale(d);
   }
 
-  function center(scale) {
-    var offset = Math.max(0, scale.bandwidth() - 1) / 2; // Adjust for 0.5px offset.
+  function center(scale, offset) {
+    offset = Math.max(0, scale.bandwidth() - offset * 2) / 2;
     if (scale.round()) offset = Math.round(offset);
-    return function(d) {
-      return +scale(d) + offset;
-    };
+    return d => +scale(d) + offset;
   }
 
   function entering() {
@@ -184,18 +182,19 @@ var chart = (function (exports) {
         tickSizeInner = 6,
         tickSizeOuter = 6,
         tickPadding = 3,
+        offset = typeof window !== "undefined" && window.devicePixelRatio > 1 ? 0 : 0.5,
         k = orient === top || orient === left ? -1 : 1,
         x = orient === left || orient === right ? "x" : "y",
         transform = orient === top || orient === bottom ? translateX : translateY;
 
     function axis(context) {
       var values = tickValues == null ? (scale.ticks ? scale.ticks.apply(scale, tickArguments) : scale.domain()) : tickValues,
-          format = tickFormat == null ? (scale.tickFormat ? scale.tickFormat.apply(scale, tickArguments) : identity) : tickFormat,
+          format = tickFormat == null ? (scale.tickFormat ? scale.tickFormat.apply(scale, tickArguments) : identity$2) : tickFormat,
           spacing = Math.max(tickSizeInner, 0) + tickPadding,
           range = scale.range(),
-          range0 = +range[0] + 0.5,
-          range1 = +range[range.length - 1] + 0.5,
-          position = (scale.bandwidth ? center : number$1)(scale.copy()),
+          range0 = +range[0] + offset,
+          range1 = +range[range.length - 1] + offset,
+          position = (scale.bandwidth ? center : number$2)(scale.copy(), offset),
           selection = context.selection ? context.selection() : context,
           path = selection.selectAll(".domain").data([null]),
           tick = selection.selectAll(".tick").data(values, scale).order(),
@@ -226,24 +225,24 @@ var chart = (function (exports) {
         text = text.transition(context);
 
         tickExit = tickExit.transition(context)
-            .attr("opacity", epsilon)
-            .attr("transform", function(d) { return isFinite(d = position(d)) ? transform(d) : this.getAttribute("transform"); });
+            .attr("opacity", epsilon$1)
+            .attr("transform", function(d) { return isFinite(d = position(d)) ? transform(d + offset) : this.getAttribute("transform"); });
 
         tickEnter
-            .attr("opacity", epsilon)
-            .attr("transform", function(d) { var p = this.parentNode.__axis; return transform(p && isFinite(p = p(d)) ? p : position(d)); });
+            .attr("opacity", epsilon$1)
+            .attr("transform", function(d) { var p = this.parentNode.__axis; return transform((p && isFinite(p = p(d)) ? p : position(d)) + offset); });
       }
 
       tickExit.remove();
 
       path
-          .attr("d", orient === left || orient == right
-              ? (tickSizeOuter ? "M" + k * tickSizeOuter + "," + range0 + "H0.5V" + range1 + "H" + k * tickSizeOuter : "M0.5," + range0 + "V" + range1)
-              : (tickSizeOuter ? "M" + range0 + "," + k * tickSizeOuter + "V0.5H" + range1 + "V" + k * tickSizeOuter : "M" + range0 + ",0.5H" + range1));
+          .attr("d", orient === left || orient === right
+              ? (tickSizeOuter ? "M" + k * tickSizeOuter + "," + range0 + "H" + offset + "V" + range1 + "H" + k * tickSizeOuter : "M" + offset + "," + range0 + "V" + range1)
+              : (tickSizeOuter ? "M" + range0 + "," + k * tickSizeOuter + "V" + offset + "H" + range1 + "V" + k * tickSizeOuter : "M" + range0 + "," + offset + "H" + range1));
 
       tick
           .attr("opacity", 1)
-          .attr("transform", function(d) { return transform(position(d)); });
+          .attr("transform", function(d) { return transform(position(d) + offset); });
 
       line
           .attr(x + "2", k * tickSizeInner);
@@ -298,6 +297,10 @@ var chart = (function (exports) {
       return arguments.length ? (tickPadding = +_, axis) : tickPadding;
     };
 
+    axis.offset = function(_) {
+      return arguments.length ? (offset = +_, axis) : offset;
+    };
+
     return axis;
   }
 
@@ -305,55 +308,55 @@ var chart = (function (exports) {
     return axis(bottom, scale);
   }
 
-  var xhtml = "http://www.w3.org/1999/xhtml";
+  var xhtml$1 = "http://www.w3.org/1999/xhtml";
 
-  var namespaces = {
+  var namespaces$1 = {
     svg: "http://www.w3.org/2000/svg",
-    xhtml: xhtml,
+    xhtml: xhtml$1,
     xlink: "http://www.w3.org/1999/xlink",
     xml: "http://www.w3.org/XML/1998/namespace",
     xmlns: "http://www.w3.org/2000/xmlns/"
   };
 
-  function namespace(name) {
+  function namespace$1(name) {
     var prefix = name += "", i = prefix.indexOf(":");
     if (i >= 0 && (prefix = name.slice(0, i)) !== "xmlns") name = name.slice(i + 1);
-    return namespaces.hasOwnProperty(prefix) ? {space: namespaces[prefix], local: name} : name; // eslint-disable-line no-prototype-builtins
+    return namespaces$1.hasOwnProperty(prefix) ? {space: namespaces$1[prefix], local: name} : name; // eslint-disable-line no-prototype-builtins
   }
 
-  function creatorInherit(name) {
+  function creatorInherit$1(name) {
     return function() {
       var document = this.ownerDocument,
           uri = this.namespaceURI;
-      return uri === xhtml && document.documentElement.namespaceURI === xhtml
+      return uri === xhtml$1 && document.documentElement.namespaceURI === xhtml$1
           ? document.createElement(name)
           : document.createElementNS(uri, name);
     };
   }
 
-  function creatorFixed(fullname) {
+  function creatorFixed$1(fullname) {
     return function() {
       return this.ownerDocument.createElementNS(fullname.space, fullname.local);
     };
   }
 
-  function creator(name) {
-    var fullname = namespace(name);
+  function creator$1(name) {
+    var fullname = namespace$1(name);
     return (fullname.local
-        ? creatorFixed
-        : creatorInherit)(fullname);
+        ? creatorFixed$1
+        : creatorInherit$1)(fullname);
   }
 
-  function none() {}
+  function none$3() {}
 
-  function selector(selector) {
-    return selector == null ? none : function() {
+  function selector$1(selector) {
+    return selector == null ? none$3 : function() {
       return this.querySelector(selector);
     };
   }
 
-  function selection_select(select) {
-    if (typeof select !== "function") select = selector(select);
+  function selection_select$1(select) {
+    if (typeof select !== "function") select = selector$1(select);
 
     for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
       for (var group = groups[j], n = group.length, subgroup = subgroups[j] = new Array(n), node, subnode, i = 0; i < n; ++i) {
@@ -364,35 +367,35 @@ var chart = (function (exports) {
       }
     }
 
-    return new Selection(subgroups, this._parents);
+    return new Selection$1(subgroups, this._parents);
   }
 
-  function array(x) {
+  function array$2(x) {
     return typeof x === "object" && "length" in x
       ? x // Array, TypedArray, NodeList, array-like
       : Array.from(x); // Map, Set, iterable, string, or anything else
   }
 
-  function empty() {
+  function empty$1() {
     return [];
   }
 
-  function selectorAll(selector) {
-    return selector == null ? empty : function() {
+  function selectorAll$1(selector) {
+    return selector == null ? empty$1 : function() {
       return this.querySelectorAll(selector);
     };
   }
 
-  function arrayAll(select) {
+  function arrayAll$1(select) {
     return function() {
       var group = select.apply(this, arguments);
-      return group == null ? [] : array(group);
+      return group == null ? [] : array$2(group);
     };
   }
 
-  function selection_selectAll(select) {
-    if (typeof select === "function") select = arrayAll(select);
-    else select = selectorAll(select);
+  function selection_selectAll$1(select) {
+    if (typeof select === "function") select = arrayAll$1(select);
+    else select = selectorAll$1(select);
 
     for (var groups = this._groups, m = groups.length, subgroups = [], parents = [], j = 0; j < m; ++j) {
       for (var group = groups[j], n = group.length, node, i = 0; i < n; ++i) {
@@ -403,57 +406,57 @@ var chart = (function (exports) {
       }
     }
 
-    return new Selection(subgroups, parents);
+    return new Selection$1(subgroups, parents);
   }
 
-  function matcher(selector) {
+  function matcher$1(selector) {
     return function() {
       return this.matches(selector);
     };
   }
 
-  function childMatcher(selector) {
+  function childMatcher$1(selector) {
     return function(node) {
       return node.matches(selector);
     };
   }
 
-  var find = Array.prototype.find;
+  var find$1 = Array.prototype.find;
 
-  function childFind(match) {
+  function childFind$1(match) {
     return function() {
-      return find.call(this.children, match);
+      return find$1.call(this.children, match);
     };
   }
 
-  function childFirst() {
+  function childFirst$1() {
     return this.firstElementChild;
   }
 
-  function selection_selectChild(match) {
-    return this.select(match == null ? childFirst
-        : childFind(typeof match === "function" ? match : childMatcher(match)));
+  function selection_selectChild$1(match) {
+    return this.select(match == null ? childFirst$1
+        : childFind$1(typeof match === "function" ? match : childMatcher$1(match)));
   }
 
-  var filter = Array.prototype.filter;
+  var filter$1 = Array.prototype.filter;
 
-  function children() {
+  function children$1() {
     return this.children;
   }
 
-  function childrenFilter(match) {
+  function childrenFilter$1(match) {
     return function() {
-      return filter.call(this.children, match);
+      return filter$1.call(this.children, match);
     };
   }
 
-  function selection_selectChildren(match) {
-    return this.selectAll(match == null ? children
-        : childrenFilter(typeof match === "function" ? match : childMatcher(match)));
+  function selection_selectChildren$1(match) {
+    return this.selectAll(match == null ? children$1
+        : childrenFilter$1(typeof match === "function" ? match : childMatcher$1(match)));
   }
 
-  function selection_filter(match) {
-    if (typeof match !== "function") match = matcher(match);
+  function selection_filter$1(match) {
+    if (typeof match !== "function") match = matcher$1(match);
 
     for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
       for (var group = groups[j], n = group.length, subgroup = subgroups[j] = [], node, i = 0; i < n; ++i) {
@@ -463,18 +466,18 @@ var chart = (function (exports) {
       }
     }
 
-    return new Selection(subgroups, this._parents);
+    return new Selection$1(subgroups, this._parents);
   }
 
-  function sparse(update) {
+  function sparse$1(update) {
     return new Array(update.length);
   }
 
-  function selection_enter() {
-    return new Selection(this._enter || this._groups.map(sparse), this._parents);
+  function selection_enter$1() {
+    return new Selection$1(this._enter || this._groups.map(sparse$1), this._parents);
   }
 
-  function EnterNode(parent, datum) {
+  function EnterNode$1(parent, datum) {
     this.ownerDocument = parent.ownerDocument;
     this.namespaceURI = parent.namespaceURI;
     this._next = null;
@@ -482,21 +485,21 @@ var chart = (function (exports) {
     this.__data__ = datum;
   }
 
-  EnterNode.prototype = {
-    constructor: EnterNode,
+  EnterNode$1.prototype = {
+    constructor: EnterNode$1,
     appendChild: function(child) { return this._parent.insertBefore(child, this._next); },
     insertBefore: function(child, next) { return this._parent.insertBefore(child, next); },
     querySelector: function(selector) { return this._parent.querySelector(selector); },
     querySelectorAll: function(selector) { return this._parent.querySelectorAll(selector); }
   };
 
-  function constant(x) {
+  function constant$3(x) {
     return function() {
       return x;
     };
   }
 
-  function bindIndex(parent, group, enter, update, exit, data) {
+  function bindIndex$1(parent, group, enter, update, exit, data) {
     var i = 0,
         node,
         groupLength = group.length,
@@ -510,7 +513,7 @@ var chart = (function (exports) {
         node.__data__ = data[i];
         update[i] = node;
       } else {
-        enter[i] = new EnterNode(parent, data[i]);
+        enter[i] = new EnterNode$1(parent, data[i]);
       }
     }
 
@@ -522,7 +525,7 @@ var chart = (function (exports) {
     }
   }
 
-  function bindKey(parent, group, enter, update, exit, data, key) {
+  function bindKey$1(parent, group, enter, update, exit, data, key) {
     var i,
         node,
         nodeByKeyValue = new Map,
@@ -554,7 +557,7 @@ var chart = (function (exports) {
         node.__data__ = data[i];
         nodeByKeyValue.delete(keyValue);
       } else {
-        enter[i] = new EnterNode(parent, data[i]);
+        enter[i] = new EnterNode$1(parent, data[i]);
       }
     }
 
@@ -566,24 +569,24 @@ var chart = (function (exports) {
     }
   }
 
-  function datum(node) {
+  function datum$1(node) {
     return node.__data__;
   }
 
-  function selection_data(value, key) {
-    if (!arguments.length) return Array.from(this, datum);
+  function selection_data$1(value, key) {
+    if (!arguments.length) return Array.from(this, datum$1);
 
-    var bind = key ? bindKey : bindIndex,
+    var bind = key ? bindKey$1 : bindIndex$1,
         parents = this._parents,
         groups = this._groups;
 
-    if (typeof value !== "function") value = constant(value);
+    if (typeof value !== "function") value = constant$3(value);
 
     for (var m = groups.length, update = new Array(m), enter = new Array(m), exit = new Array(m), j = 0; j < m; ++j) {
       var parent = parents[j],
           group = groups[j],
           groupLength = group.length,
-          data = array(value.call(parent, parent && parent.__data__, j, parents)),
+          data = array$2(value.call(parent, parent && parent.__data__, j, parents)),
           dataLength = data.length,
           enterGroup = enter[j] = new Array(dataLength),
           updateGroup = update[j] = new Array(dataLength),
@@ -603,17 +606,17 @@ var chart = (function (exports) {
       }
     }
 
-    update = new Selection(update, parents);
+    update = new Selection$1(update, parents);
     update._enter = enter;
     update._exit = exit;
     return update;
   }
 
-  function selection_exit() {
-    return new Selection(this._exit || this._groups.map(sparse), this._parents);
+  function selection_exit$1() {
+    return new Selection$1(this._exit || this._groups.map(sparse$1), this._parents);
   }
 
-  function selection_join(onenter, onupdate, onexit) {
+  function selection_join$1(onenter, onupdate, onexit) {
     var enter = this.enter(), update = this, exit = this.exit();
     enter = typeof onenter === "function" ? onenter(enter) : enter.append(onenter + "");
     if (onupdate != null) update = onupdate(update);
@@ -621,8 +624,8 @@ var chart = (function (exports) {
     return enter && update ? enter.merge(update).order() : update;
   }
 
-  function selection_merge(selection) {
-    if (!(selection instanceof Selection)) throw new Error("invalid merge");
+  function selection_merge$1(selection) {
+    if (!(selection instanceof Selection$1)) throw new Error("invalid merge");
 
     for (var groups0 = this._groups, groups1 = selection._groups, m0 = groups0.length, m1 = groups1.length, m = Math.min(m0, m1), merges = new Array(m0), j = 0; j < m; ++j) {
       for (var group0 = groups0[j], group1 = groups1[j], n = group0.length, merge = merges[j] = new Array(n), node, i = 0; i < n; ++i) {
@@ -636,10 +639,10 @@ var chart = (function (exports) {
       merges[j] = groups0[j];
     }
 
-    return new Selection(merges, this._parents);
+    return new Selection$1(merges, this._parents);
   }
 
-  function selection_order() {
+  function selection_order$1() {
 
     for (var groups = this._groups, j = -1, m = groups.length; ++j < m;) {
       for (var group = groups[j], i = group.length - 1, next = group[i], node; --i >= 0;) {
@@ -653,7 +656,7 @@ var chart = (function (exports) {
     return this;
   }
 
-  function selection_sort(compare) {
+  function selection_sort$1(compare) {
     if (!compare) compare = ascending$1;
 
     function compareNode(a, b) {
@@ -669,25 +672,25 @@ var chart = (function (exports) {
       sortgroup.sort(compareNode);
     }
 
-    return new Selection(sortgroups, this._parents).order();
+    return new Selection$1(sortgroups, this._parents).order();
   }
 
   function ascending$1(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
-  function selection_call() {
+  function selection_call$1() {
     var callback = arguments[0];
     arguments[0] = this;
     callback.apply(null, arguments);
     return this;
   }
 
-  function selection_nodes() {
+  function selection_nodes$1() {
     return Array.from(this);
   }
 
-  function selection_node() {
+  function selection_node$1() {
 
     for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
       for (var group = groups[j], i = 0, n = group.length; i < n; ++i) {
@@ -699,17 +702,17 @@ var chart = (function (exports) {
     return null;
   }
 
-  function selection_size() {
+  function selection_size$1() {
     let size = 0;
     for (const node of this) ++size; // eslint-disable-line no-unused-vars
     return size;
   }
 
-  function selection_empty() {
+  function selection_empty$1() {
     return !this.node();
   }
 
-  function selection_each(callback) {
+  function selection_each$1(callback) {
 
     for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
       for (var group = groups[j], i = 0, n = group.length, node; i < n; ++i) {
@@ -720,31 +723,31 @@ var chart = (function (exports) {
     return this;
   }
 
-  function attrRemove(name) {
+  function attrRemove$1(name) {
     return function() {
       this.removeAttribute(name);
     };
   }
 
-  function attrRemoveNS(fullname) {
+  function attrRemoveNS$1(fullname) {
     return function() {
       this.removeAttributeNS(fullname.space, fullname.local);
     };
   }
 
-  function attrConstant(name, value) {
+  function attrConstant$1(name, value) {
     return function() {
       this.setAttribute(name, value);
     };
   }
 
-  function attrConstantNS(fullname, value) {
+  function attrConstantNS$1(fullname, value) {
     return function() {
       this.setAttributeNS(fullname.space, fullname.local, value);
     };
   }
 
-  function attrFunction(name, value) {
+  function attrFunction$1(name, value) {
     return function() {
       var v = value.apply(this, arguments);
       if (v == null) this.removeAttribute(name);
@@ -752,7 +755,7 @@ var chart = (function (exports) {
     };
   }
 
-  function attrFunctionNS(fullname, value) {
+  function attrFunctionNS$1(fullname, value) {
     return function() {
       var v = value.apply(this, arguments);
       if (v == null) this.removeAttributeNS(fullname.space, fullname.local);
@@ -760,8 +763,8 @@ var chart = (function (exports) {
     };
   }
 
-  function selection_attr(name, value) {
-    var fullname = namespace(name);
+  function selection_attr$1(name, value) {
+    var fullname = namespace$1(name);
 
     if (arguments.length < 2) {
       var node = this.node();
@@ -771,30 +774,30 @@ var chart = (function (exports) {
     }
 
     return this.each((value == null
-        ? (fullname.local ? attrRemoveNS : attrRemove) : (typeof value === "function"
-        ? (fullname.local ? attrFunctionNS : attrFunction)
-        : (fullname.local ? attrConstantNS : attrConstant)))(fullname, value));
+        ? (fullname.local ? attrRemoveNS$1 : attrRemove$1) : (typeof value === "function"
+        ? (fullname.local ? attrFunctionNS$1 : attrFunction$1)
+        : (fullname.local ? attrConstantNS$1 : attrConstant$1)))(fullname, value));
   }
 
-  function defaultView(node) {
+  function defaultView$1(node) {
     return (node.ownerDocument && node.ownerDocument.defaultView) // node is a Node
         || (node.document && node) // node is a Window
         || node.defaultView; // node is a Document
   }
 
-  function styleRemove(name) {
+  function styleRemove$1(name) {
     return function() {
       this.style.removeProperty(name);
     };
   }
 
-  function styleConstant(name, value, priority) {
+  function styleConstant$1(name, value, priority) {
     return function() {
       this.style.setProperty(name, value, priority);
     };
   }
 
-  function styleFunction(name, value, priority) {
+  function styleFunction$1(name, value, priority) {
     return function() {
       var v = value.apply(this, arguments);
       if (v == null) this.style.removeProperty(name);
@@ -802,33 +805,33 @@ var chart = (function (exports) {
     };
   }
 
-  function selection_style(name, value, priority) {
+  function selection_style$1(name, value, priority) {
     return arguments.length > 1
         ? this.each((value == null
-              ? styleRemove : typeof value === "function"
-              ? styleFunction
-              : styleConstant)(name, value, priority == null ? "" : priority))
-        : styleValue(this.node(), name);
+              ? styleRemove$1 : typeof value === "function"
+              ? styleFunction$1
+              : styleConstant$1)(name, value, priority == null ? "" : priority))
+        : styleValue$1(this.node(), name);
   }
 
-  function styleValue(node, name) {
+  function styleValue$1(node, name) {
     return node.style.getPropertyValue(name)
-        || defaultView(node).getComputedStyle(node, null).getPropertyValue(name);
+        || defaultView$1(node).getComputedStyle(node, null).getPropertyValue(name);
   }
 
-  function propertyRemove(name) {
+  function propertyRemove$1(name) {
     return function() {
       delete this[name];
     };
   }
 
-  function propertyConstant(name, value) {
+  function propertyConstant$1(name, value) {
     return function() {
       this[name] = value;
     };
   }
 
-  function propertyFunction(name, value) {
+  function propertyFunction$1(name, value) {
     return function() {
       var v = value.apply(this, arguments);
       if (v == null) delete this[name];
@@ -836,29 +839,29 @@ var chart = (function (exports) {
     };
   }
 
-  function selection_property(name, value) {
+  function selection_property$1(name, value) {
     return arguments.length > 1
         ? this.each((value == null
-            ? propertyRemove : typeof value === "function"
-            ? propertyFunction
-            : propertyConstant)(name, value))
+            ? propertyRemove$1 : typeof value === "function"
+            ? propertyFunction$1
+            : propertyConstant$1)(name, value))
         : this.node()[name];
   }
 
-  function classArray(string) {
+  function classArray$1(string) {
     return string.trim().split(/^|\s+/);
   }
 
-  function classList(node) {
-    return node.classList || new ClassList(node);
+  function classList$1(node) {
+    return node.classList || new ClassList$1(node);
   }
 
-  function ClassList(node) {
+  function ClassList$1(node) {
     this._node = node;
-    this._names = classArray(node.getAttribute("class") || "");
+    this._names = classArray$1(node.getAttribute("class") || "");
   }
 
-  ClassList.prototype = {
+  ClassList$1.prototype = {
     add: function(name) {
       var i = this._names.indexOf(name);
       if (i < 0) {
@@ -878,172 +881,172 @@ var chart = (function (exports) {
     }
   };
 
-  function classedAdd(node, names) {
-    var list = classList(node), i = -1, n = names.length;
+  function classedAdd$1(node, names) {
+    var list = classList$1(node), i = -1, n = names.length;
     while (++i < n) list.add(names[i]);
   }
 
-  function classedRemove(node, names) {
-    var list = classList(node), i = -1, n = names.length;
+  function classedRemove$1(node, names) {
+    var list = classList$1(node), i = -1, n = names.length;
     while (++i < n) list.remove(names[i]);
   }
 
-  function classedTrue(names) {
+  function classedTrue$1(names) {
     return function() {
-      classedAdd(this, names);
+      classedAdd$1(this, names);
     };
   }
 
-  function classedFalse(names) {
+  function classedFalse$1(names) {
     return function() {
-      classedRemove(this, names);
+      classedRemove$1(this, names);
     };
   }
 
-  function classedFunction(names, value) {
+  function classedFunction$1(names, value) {
     return function() {
-      (value.apply(this, arguments) ? classedAdd : classedRemove)(this, names);
+      (value.apply(this, arguments) ? classedAdd$1 : classedRemove$1)(this, names);
     };
   }
 
-  function selection_classed(name, value) {
-    var names = classArray(name + "");
+  function selection_classed$1(name, value) {
+    var names = classArray$1(name + "");
 
     if (arguments.length < 2) {
-      var list = classList(this.node()), i = -1, n = names.length;
+      var list = classList$1(this.node()), i = -1, n = names.length;
       while (++i < n) if (!list.contains(names[i])) return false;
       return true;
     }
 
     return this.each((typeof value === "function"
-        ? classedFunction : value
-        ? classedTrue
-        : classedFalse)(names, value));
+        ? classedFunction$1 : value
+        ? classedTrue$1
+        : classedFalse$1)(names, value));
   }
 
-  function textRemove() {
+  function textRemove$1() {
     this.textContent = "";
   }
 
-  function textConstant(value) {
+  function textConstant$1(value) {
     return function() {
       this.textContent = value;
     };
   }
 
-  function textFunction(value) {
+  function textFunction$1(value) {
     return function() {
       var v = value.apply(this, arguments);
       this.textContent = v == null ? "" : v;
     };
   }
 
-  function selection_text(value) {
+  function selection_text$1(value) {
     return arguments.length
         ? this.each(value == null
-            ? textRemove : (typeof value === "function"
-            ? textFunction
-            : textConstant)(value))
+            ? textRemove$1 : (typeof value === "function"
+            ? textFunction$1
+            : textConstant$1)(value))
         : this.node().textContent;
   }
 
-  function htmlRemove() {
+  function htmlRemove$1() {
     this.innerHTML = "";
   }
 
-  function htmlConstant(value) {
+  function htmlConstant$1(value) {
     return function() {
       this.innerHTML = value;
     };
   }
 
-  function htmlFunction(value) {
+  function htmlFunction$1(value) {
     return function() {
       var v = value.apply(this, arguments);
       this.innerHTML = v == null ? "" : v;
     };
   }
 
-  function selection_html(value) {
+  function selection_html$1(value) {
     return arguments.length
         ? this.each(value == null
-            ? htmlRemove : (typeof value === "function"
-            ? htmlFunction
-            : htmlConstant)(value))
+            ? htmlRemove$1 : (typeof value === "function"
+            ? htmlFunction$1
+            : htmlConstant$1)(value))
         : this.node().innerHTML;
   }
 
-  function raise() {
+  function raise$1() {
     if (this.nextSibling) this.parentNode.appendChild(this);
   }
 
-  function selection_raise() {
-    return this.each(raise);
+  function selection_raise$1() {
+    return this.each(raise$1);
   }
 
-  function lower() {
+  function lower$1() {
     if (this.previousSibling) this.parentNode.insertBefore(this, this.parentNode.firstChild);
   }
 
-  function selection_lower() {
-    return this.each(lower);
+  function selection_lower$1() {
+    return this.each(lower$1);
   }
 
-  function selection_append(name) {
-    var create = typeof name === "function" ? name : creator(name);
+  function selection_append$1(name) {
+    var create = typeof name === "function" ? name : creator$1(name);
     return this.select(function() {
       return this.appendChild(create.apply(this, arguments));
     });
   }
 
-  function constantNull() {
+  function constantNull$1() {
     return null;
   }
 
-  function selection_insert(name, before) {
-    var create = typeof name === "function" ? name : creator(name),
-        select = before == null ? constantNull : typeof before === "function" ? before : selector(before);
+  function selection_insert$1(name, before) {
+    var create = typeof name === "function" ? name : creator$1(name),
+        select = before == null ? constantNull$1 : typeof before === "function" ? before : selector$1(before);
     return this.select(function() {
       return this.insertBefore(create.apply(this, arguments), select.apply(this, arguments) || null);
     });
   }
 
-  function remove() {
+  function remove$1() {
     var parent = this.parentNode;
     if (parent) parent.removeChild(this);
   }
 
-  function selection_remove() {
-    return this.each(remove);
+  function selection_remove$1() {
+    return this.each(remove$1);
   }
 
-  function selection_cloneShallow() {
+  function selection_cloneShallow$1() {
     var clone = this.cloneNode(false), parent = this.parentNode;
     return parent ? parent.insertBefore(clone, this.nextSibling) : clone;
   }
 
-  function selection_cloneDeep() {
+  function selection_cloneDeep$1() {
     var clone = this.cloneNode(true), parent = this.parentNode;
     return parent ? parent.insertBefore(clone, this.nextSibling) : clone;
   }
 
-  function selection_clone(deep) {
-    return this.select(deep ? selection_cloneDeep : selection_cloneShallow);
+  function selection_clone$1(deep) {
+    return this.select(deep ? selection_cloneDeep$1 : selection_cloneShallow$1);
   }
 
-  function selection_datum(value) {
+  function selection_datum$1(value) {
     return arguments.length
         ? this.property("__data__", value)
         : this.node().__data__;
   }
 
-  function contextListener(listener) {
+  function contextListener$1(listener) {
     return function(event) {
       listener.call(this, event, this.__data__);
     };
   }
 
-  function parseTypenames(typenames) {
+  function parseTypenames$1(typenames) {
     return typenames.trim().split(/^|\s+/).map(function(t) {
       var name = "", i = t.indexOf(".");
       if (i >= 0) name = t.slice(i + 1), t = t.slice(0, i);
@@ -1051,7 +1054,7 @@ var chart = (function (exports) {
     });
   }
 
-  function onRemove(typename) {
+  function onRemove$1(typename) {
     return function() {
       var on = this.__on;
       if (!on) return;
@@ -1067,9 +1070,9 @@ var chart = (function (exports) {
     };
   }
 
-  function onAdd(typename, value, options) {
+  function onAdd$1(typename, value, options) {
     return function() {
-      var on = this.__on, o, listener = contextListener(value);
+      var on = this.__on, o, listener = contextListener$1(value);
       if (on) for (var j = 0, m = on.length; j < m; ++j) {
         if ((o = on[j]).type === typename.type && o.name === typename.name) {
           this.removeEventListener(o.type, o.listener, o.options);
@@ -1085,8 +1088,8 @@ var chart = (function (exports) {
     };
   }
 
-  function selection_on(typename, value, options) {
-    var typenames = parseTypenames(typename + ""), i, n = typenames.length, t;
+  function selection_on$1(typename, value, options) {
+    var typenames = parseTypenames$1(typename + ""), i, n = typenames.length, t;
 
     if (arguments.length < 2) {
       var on = this.node().__on;
@@ -1100,13 +1103,13 @@ var chart = (function (exports) {
       return;
     }
 
-    on = value ? onAdd : onRemove;
+    on = value ? onAdd$1 : onRemove$1;
     for (i = 0; i < n; ++i) this.each(on(typenames[i], value, options));
     return this;
   }
 
-  function dispatchEvent(node, type, params) {
-    var window = defaultView(node),
+  function dispatchEvent$1(node, type, params) {
+    var window = defaultView$1(node),
         event = window.CustomEvent;
 
     if (typeof event === "function") {
@@ -1120,25 +1123,25 @@ var chart = (function (exports) {
     node.dispatchEvent(event);
   }
 
-  function dispatchConstant(type, params) {
+  function dispatchConstant$1(type, params) {
     return function() {
-      return dispatchEvent(this, type, params);
+      return dispatchEvent$1(this, type, params);
     };
   }
 
-  function dispatchFunction(type, params) {
+  function dispatchFunction$1(type, params) {
     return function() {
-      return dispatchEvent(this, type, params.apply(this, arguments));
+      return dispatchEvent$1(this, type, params.apply(this, arguments));
     };
   }
 
-  function selection_dispatch(type, params) {
+  function selection_dispatch$1(type, params) {
     return this.each((typeof params === "function"
-        ? dispatchFunction
-        : dispatchConstant)(type, params));
+        ? dispatchFunction$1
+        : dispatchConstant$1)(type, params));
   }
 
-  function* selection_iterator() {
+  function* selection_iterator$1() {
     for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
       for (var group = groups[j], i = 0, n = group.length, node; i < n; ++i) {
         if (node = group[i]) yield node;
@@ -1146,64 +1149,60 @@ var chart = (function (exports) {
     }
   }
 
-  var root = [null];
+  var root$1 = [null];
 
-  function Selection(groups, parents) {
+  function Selection$1(groups, parents) {
     this._groups = groups;
     this._parents = parents;
   }
 
-  function selection() {
-    return new Selection([[document.documentElement]], root);
-  }
-
-  function selection_selection() {
+  function selection_selection$1() {
     return this;
   }
 
-  Selection.prototype = selection.prototype = {
-    constructor: Selection,
-    select: selection_select,
-    selectAll: selection_selectAll,
-    selectChild: selection_selectChild,
-    selectChildren: selection_selectChildren,
-    filter: selection_filter,
-    data: selection_data,
-    enter: selection_enter,
-    exit: selection_exit,
-    join: selection_join,
-    merge: selection_merge,
-    selection: selection_selection,
-    order: selection_order,
-    sort: selection_sort,
-    call: selection_call,
-    nodes: selection_nodes,
-    node: selection_node,
-    size: selection_size,
-    empty: selection_empty,
-    each: selection_each,
-    attr: selection_attr,
-    style: selection_style,
-    property: selection_property,
-    classed: selection_classed,
-    text: selection_text,
-    html: selection_html,
-    raise: selection_raise,
-    lower: selection_lower,
-    append: selection_append,
-    insert: selection_insert,
-    remove: selection_remove,
-    clone: selection_clone,
-    datum: selection_datum,
-    on: selection_on,
-    dispatch: selection_dispatch,
-    [Symbol.iterator]: selection_iterator
+  Selection$1.prototype = {
+    constructor: Selection$1,
+    select: selection_select$1,
+    selectAll: selection_selectAll$1,
+    selectChild: selection_selectChild$1,
+    selectChildren: selection_selectChildren$1,
+    filter: selection_filter$1,
+    data: selection_data$1,
+    enter: selection_enter$1,
+    exit: selection_exit$1,
+    join: selection_join$1,
+    merge: selection_merge$1,
+    selection: selection_selection$1,
+    order: selection_order$1,
+    sort: selection_sort$1,
+    call: selection_call$1,
+    nodes: selection_nodes$1,
+    node: selection_node$1,
+    size: selection_size$1,
+    empty: selection_empty$1,
+    each: selection_each$1,
+    attr: selection_attr$1,
+    style: selection_style$1,
+    property: selection_property$1,
+    classed: selection_classed$1,
+    text: selection_text$1,
+    html: selection_html$1,
+    raise: selection_raise$1,
+    lower: selection_lower$1,
+    append: selection_append$1,
+    insert: selection_insert$1,
+    remove: selection_remove$1,
+    clone: selection_clone$1,
+    datum: selection_datum$1,
+    on: selection_on$1,
+    dispatch: selection_dispatch$1,
+    [Symbol.iterator]: selection_iterator$1
   };
 
-  function select(selector) {
+  function select$1(selector) {
     return typeof selector === "string"
-        ? new Selection([[document.querySelector(selector)]], [document.documentElement])
-        : new Selection([[selector]], root);
+        ? new Selection$1([[document.querySelector(selector)]], [document.documentElement])
+        : new Selection$1([[selector]], root$1);
   }
 
   function sourceEvent(event) {
@@ -1231,13 +1230,13 @@ var chart = (function (exports) {
     return [event.pageX, event.pageY];
   }
 
-  function selectAll(selector) {
+  function selectAll$1(selector) {
     return typeof selector === "string"
-        ? new Selection([document.querySelectorAll(selector)], [document.documentElement])
-        : new Selection([selector == null ? [] : array(selector)], root);
+        ? new Selection$1([document.querySelectorAll(selector)], [document.documentElement])
+        : new Selection$1([selector == null ? [] : array$2(selector)], root$1);
   }
 
-  function initRange(domain, range) {
+  function initRange$1(domain, range) {
     switch (arguments.length) {
       case 0: break;
       case 1: this.range(domain); break;
@@ -1485,7 +1484,7 @@ var chart = (function (exports) {
     return new Rgb(o.r, o.g, o.b, o.opacity);
   }
 
-  function rgb(r, g, b, opacity) {
+  function rgb$1(r, g, b, opacity) {
     return arguments.length === 1 ? rgbConvert(r) : new Rgb(r, g, b, opacity == null ? 1 : opacity);
   }
 
@@ -1496,7 +1495,7 @@ var chart = (function (exports) {
     this.opacity = +opacity;
   }
 
-  define(Rgb, rgb, extend(Color, {
+  define(Rgb, rgb$1, extend(Color, {
     brighter: function(k) {
       k = k == null ? brighter : Math.pow(brighter, k);
       return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
@@ -1627,9 +1626,9 @@ var chart = (function (exports) {
         : m1) * 255;
   }
 
-  var constant$1 = x => () => x;
+  var constant$2 = x => () => x;
 
-  function linear(a, d) {
+  function linear$1(a, d) {
     return function(t) {
       return a + t * d;
     };
@@ -1643,20 +1642,20 @@ var chart = (function (exports) {
 
   function gamma(y) {
     return (y = +y) === 1 ? nogamma : function(a, b) {
-      return b - a ? exponential(a, b, y) : constant$1(isNaN(a) ? b : a);
+      return b - a ? exponential(a, b, y) : constant$2(isNaN(a) ? b : a);
     };
   }
 
   function nogamma(a, b) {
     var d = b - a;
-    return d ? linear(a, d) : constant$1(isNaN(a) ? b : a);
+    return d ? linear$1(a, d) : constant$2(isNaN(a) ? b : a);
   }
 
-  var rgb$1 = (function rgbGamma(y) {
+  var rgb = (function rgbGamma(y) {
     var color = gamma(y);
 
-    function rgb$1(start, end) {
-      var r = color((start = rgb(start)).r, (end = rgb(end)).r),
+    function rgb(start, end) {
+      var r = color((start = rgb$1(start)).r, (end = rgb$1(end)).r),
           g = color(start.g, end.g),
           b = color(start.b, end.b),
           opacity = nogamma(start.opacity, end.opacity);
@@ -1669,9 +1668,9 @@ var chart = (function (exports) {
       };
     }
 
-    rgb$1.gamma = rgbGamma;
+    rgb.gamma = rgbGamma;
 
-    return rgb$1;
+    return rgb;
   })(1);
 
   function numberArray(a, b) {
@@ -1705,7 +1704,7 @@ var chart = (function (exports) {
     };
   }
 
-  function date(a, b) {
+  function date$1(a, b) {
     var d = new Date;
     return a = +a, b = +b, function(t) {
       return d.setTime(a * (1 - t) + b * t), d;
@@ -1805,11 +1804,11 @@ var chart = (function (exports) {
 
   function interpolate(a, b) {
     var t = typeof b, c;
-    return b == null || t === "boolean" ? constant$1(b)
+    return b == null || t === "boolean" ? constant$2(b)
         : (t === "number" ? interpolateNumber
-        : t === "string" ? ((c = color(b)) ? (b = c, rgb$1) : string)
-        : b instanceof color ? rgb$1
-        : b instanceof Date ? date
+        : t === "string" ? ((c = color(b)) ? (b = c, rgb) : string)
+        : b instanceof color ? rgb
+        : b instanceof Date ? date$1
         : isNumberArray(b) ? numberArray
         : Array.isArray(b) ? genericArray
         : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object
@@ -1828,7 +1827,7 @@ var chart = (function (exports) {
     };
   }
 
-  function number$2(x) {
+  function number$1(x) {
     return +x;
   }
 
@@ -1920,7 +1919,7 @@ var chart = (function (exports) {
     };
 
     scale.domain = function(_) {
-      return arguments.length ? (domain = Array.from(_, number$2), rescale()) : domain.slice();
+      return arguments.length ? (domain = Array.from(_, number$1), rescale()) : domain.slice();
     };
 
     scale.range = function(_) {
@@ -2106,19 +2105,19 @@ var chart = (function (exports) {
     "x": (x) => Math.round(x).toString(16)
   };
 
-  function identity$2(x) {
+  function identity(x) {
     return x;
   }
 
   var map = Array.prototype.map,
       prefixes = ["y","z","a","f","p","n","µ","m","","k","M","G","T","P","E","Z","Y"];
 
-  function formatLocale(locale) {
-    var group = locale.grouping === undefined || locale.thousands === undefined ? identity$2 : formatGroup(map.call(locale.grouping, Number), locale.thousands + ""),
+  function formatLocale$1(locale) {
+    var group = locale.grouping === undefined || locale.thousands === undefined ? identity : formatGroup(map.call(locale.grouping, Number), locale.thousands + ""),
         currencyPrefix = locale.currency === undefined ? "" : locale.currency[0] + "",
         currencySuffix = locale.currency === undefined ? "" : locale.currency[1] + "",
         decimal = locale.decimal === undefined ? "." : locale.decimal + "",
-        numerals = locale.numerals === undefined ? identity$2 : formatNumerals(map.call(locale.numerals, String)),
+        numerals = locale.numerals === undefined ? identity : formatNumerals(map.call(locale.numerals, String)),
         percent = locale.percent === undefined ? "%" : locale.percent + "",
         minus = locale.minus === undefined ? "−" : locale.minus + "",
         nan = locale.nan === undefined ? "NaN" : locale.nan + "";
@@ -2250,21 +2249,21 @@ var chart = (function (exports) {
     };
   }
 
-  var locale;
+  var locale$1;
   var format;
   var formatPrefix;
 
-  defaultLocale({
+  defaultLocale$1({
     thousands: ",",
     grouping: [3],
     currency: ["$", ""]
   });
 
-  function defaultLocale(definition) {
-    locale = formatLocale(definition);
-    format = locale.format;
-    formatPrefix = locale.formatPrefix;
-    return locale;
+  function defaultLocale$1(definition) {
+    locale$1 = formatLocale$1(definition);
+    format = locale$1.format;
+    formatPrefix = locale$1.formatPrefix;
+    return locale$1;
   }
 
   function precisionFixed(step) {
@@ -2361,14 +2360,14 @@ var chart = (function (exports) {
     return scale;
   }
 
-  function linear$1() {
+  function linear() {
     var scale = continuous();
 
     scale.copy = function() {
-      return copy(scale, linear$1());
+      return copy(scale, linear());
     };
 
-    initRange.apply(scale, arguments);
+    initRange$1.apply(scale, arguments);
 
     return linearish(scale);
   }
@@ -2485,38 +2484,38 @@ var chart = (function (exports) {
     });
   };
 
-  var durationSecond = 1e3;
-  var durationMinute = 6e4;
-  var durationHour = 36e5;
-  var durationDay = 864e5;
-  var durationWeek = 6048e5;
+  var durationSecond$1 = 1e3;
+  var durationMinute$1 = 6e4;
+  var durationHour$1 = 36e5;
+  var durationDay$1 = 864e5;
+  var durationWeek$1 = 6048e5;
 
   var second = newInterval(function(date) {
     date.setTime(date - date.getMilliseconds());
   }, function(date, step) {
-    date.setTime(+date + step * durationSecond);
+    date.setTime(+date + step * durationSecond$1);
   }, function(start, end) {
-    return (end - start) / durationSecond;
+    return (end - start) / durationSecond$1;
   }, function(date) {
     return date.getUTCSeconds();
   });
 
   var minute = newInterval(function(date) {
-    date.setTime(date - date.getMilliseconds() - date.getSeconds() * durationSecond);
+    date.setTime(date - date.getMilliseconds() - date.getSeconds() * durationSecond$1);
   }, function(date, step) {
-    date.setTime(+date + step * durationMinute);
+    date.setTime(+date + step * durationMinute$1);
   }, function(start, end) {
-    return (end - start) / durationMinute;
+    return (end - start) / durationMinute$1;
   }, function(date) {
     return date.getMinutes();
   });
 
   var hour = newInterval(function(date) {
-    date.setTime(date - date.getMilliseconds() - date.getSeconds() * durationSecond - date.getMinutes() * durationMinute);
+    date.setTime(date - date.getMilliseconds() - date.getSeconds() * durationSecond$1 - date.getMinutes() * durationMinute$1);
   }, function(date, step) {
-    date.setTime(+date + step * durationHour);
+    date.setTime(+date + step * durationHour$1);
   }, function(start, end) {
-    return (end - start) / durationHour;
+    return (end - start) / durationHour$1;
   }, function(date) {
     return date.getHours();
   });
@@ -2524,7 +2523,7 @@ var chart = (function (exports) {
   var day = newInterval(
     date => date.setHours(0, 0, 0, 0),
     (date, step) => date.setDate(date.getDate() + step),
-    (start, end) => (end - start - (end.getTimezoneOffset() - start.getTimezoneOffset()) * durationMinute) / durationDay,
+    (start, end) => (end - start - (end.getTimezoneOffset() - start.getTimezoneOffset()) * durationMinute$1) / durationDay$1,
     date => date.getDate() - 1
   );
 
@@ -2535,17 +2534,17 @@ var chart = (function (exports) {
     }, function(date, step) {
       date.setDate(date.getDate() + step * 7);
     }, function(start, end) {
-      return (end - start - (end.getTimezoneOffset() - start.getTimezoneOffset()) * durationMinute) / durationWeek;
+      return (end - start - (end.getTimezoneOffset() - start.getTimezoneOffset()) * durationMinute$1) / durationWeek$1;
     });
   }
 
   var sunday = weekday(0);
   var monday = weekday(1);
-  var tuesday = weekday(2);
-  var wednesday = weekday(3);
+  weekday(2);
+  weekday(3);
   var thursday = weekday(4);
-  var friday = weekday(5);
-  var saturday = weekday(6);
+  weekday(5);
+  weekday(6);
 
   var month = newInterval(function(date) {
     date.setDate(1);
@@ -2585,7 +2584,7 @@ var chart = (function (exports) {
   }, function(date, step) {
     date.setUTCDate(date.getUTCDate() + step);
   }, function(start, end) {
-    return (end - start) / durationDay;
+    return (end - start) / durationDay$1;
   }, function(date) {
     return date.getUTCDate() - 1;
   });
@@ -2597,17 +2596,17 @@ var chart = (function (exports) {
     }, function(date, step) {
       date.setUTCDate(date.getUTCDate() + step * 7);
     }, function(start, end) {
-      return (end - start) / durationWeek;
+      return (end - start) / durationWeek$1;
     });
   }
 
   var utcSunday = utcWeekday(0);
   var utcMonday = utcWeekday(1);
-  var utcTuesday = utcWeekday(2);
-  var utcWednesday = utcWeekday(3);
+  utcWeekday(2);
+  utcWeekday(3);
   var utcThursday = utcWeekday(4);
-  var utcFriday = utcWeekday(5);
-  var utcSaturday = utcWeekday(6);
+  utcWeekday(5);
+  utcWeekday(6);
 
   var utcYear = newInterval(function(date) {
     date.setUTCMonth(0, 1);
@@ -2653,7 +2652,7 @@ var chart = (function (exports) {
     return {y: y, m: m, d: d, H: 0, M: 0, S: 0, L: 0};
   }
 
-  function formatLocale$1(locale) {
+  function formatLocale(locale) {
     var locale_dateTime = locale.dateTime,
         locale_date = locale.date,
         locale_time = locale.time,
@@ -3316,13 +3315,10 @@ var chart = (function (exports) {
     return Math.floor(+d / 1000);
   }
 
-  var locale$1;
+  var locale;
   var timeFormat;
-  var timeParse;
-  var utcFormat;
-  var utcParse;
 
-  defaultLocale$1({
+  defaultLocale({
     dateTime: "%x, %X",
     date: "%-m/%-d/%Y",
     time: "%-I:%M:%S %p",
@@ -3333,28 +3329,28 @@ var chart = (function (exports) {
     shortMonths: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   });
 
-  function defaultLocale$1(definition) {
-    locale$1 = formatLocale$1(definition);
-    timeFormat = locale$1.format;
-    timeParse = locale$1.parse;
-    utcFormat = locale$1.utcFormat;
-    utcParse = locale$1.utcParse;
-    return locale$1;
+  function defaultLocale(definition) {
+    locale = formatLocale(definition);
+    timeFormat = locale.format;
+    locale.parse;
+    locale.utcFormat;
+    locale.utcParse;
+    return locale;
   }
 
-  var durationSecond$1 = 1000,
-      durationMinute$1 = durationSecond$1 * 60,
-      durationHour$1 = durationMinute$1 * 60,
-      durationDay$1 = durationHour$1 * 24,
-      durationWeek$1 = durationDay$1 * 7,
-      durationMonth = durationDay$1 * 30,
-      durationYear = durationDay$1 * 365;
+  var durationSecond = 1000,
+      durationMinute = durationSecond * 60,
+      durationHour = durationMinute * 60,
+      durationDay = durationHour * 24,
+      durationWeek = durationDay * 7,
+      durationMonth = durationDay * 30,
+      durationYear = durationDay * 365;
 
-  function date$1(t) {
+  function date(t) {
     return new Date(t);
   }
 
-  function number$3(t) {
+  function number(t) {
     return t instanceof Date ? +t : +new Date(+t);
   }
 
@@ -3373,21 +3369,21 @@ var chart = (function (exports) {
         formatYear = format("%Y");
 
     var tickIntervals = [
-      [second,  1,      durationSecond$1],
-      [second,  5,  5 * durationSecond$1],
-      [second, 15, 15 * durationSecond$1],
-      [second, 30, 30 * durationSecond$1],
-      [minute,  1,      durationMinute$1],
-      [minute,  5,  5 * durationMinute$1],
-      [minute, 15, 15 * durationMinute$1],
-      [minute, 30, 30 * durationMinute$1],
-      [  hour,  1,      durationHour$1  ],
-      [  hour,  3,  3 * durationHour$1  ],
-      [  hour,  6,  6 * durationHour$1  ],
-      [  hour, 12, 12 * durationHour$1  ],
-      [   day,  1,      durationDay$1   ],
-      [   day,  2,  2 * durationDay$1   ],
-      [  week,  1,      durationWeek$1  ],
+      [second,  1,      durationSecond],
+      [second,  5,  5 * durationSecond],
+      [second, 15, 15 * durationSecond],
+      [second, 30, 30 * durationSecond],
+      [minute,  1,      durationMinute],
+      [minute,  5,  5 * durationMinute],
+      [minute, 15, 15 * durationMinute],
+      [minute, 30, 30 * durationMinute],
+      [  hour,  1,      durationHour  ],
+      [  hour,  3,  3 * durationHour  ],
+      [  hour,  6,  6 * durationHour  ],
+      [  hour, 12, 12 * durationHour  ],
+      [   day,  1,      durationDay   ],
+      [   day,  2,  2 * durationDay   ],
+      [  week,  1,      durationWeek  ],
       [ month,  1,      durationMonth ],
       [ month,  3,  3 * durationMonth ],
       [  year,  1,      durationYear  ]
@@ -3435,7 +3431,7 @@ var chart = (function (exports) {
     };
 
     scale.domain = function(_) {
-      return arguments.length ? domain(Array.from(_, number$3)) : domain().map(date$1);
+      return arguments.length ? domain(Array.from(_, number)) : domain().map(date);
     };
 
     scale.ticks = function(interval) {
@@ -3468,14 +3464,14 @@ var chart = (function (exports) {
     return scale;
   }
 
-  function time() {
-    return initRange.apply(calendar(year, month, sunday, day, hour, minute, second, millisecond, timeFormat).domain([new Date(2000, 0, 1), new Date(2000, 0, 2)]), arguments);
+  function time$1() {
+    return initRange$1.apply(calendar(year, month, sunday, day, hour, minute, second, millisecond, timeFormat).domain([new Date(2000, 0, 1), new Date(2000, 0, 2)]), arguments);
   }
 
   const pi = Math.PI,
       tau = 2 * pi,
-      epsilon$1 = 1e-6,
-      tauEpsilon = tau - epsilon$1;
+      epsilon = 1e-6,
+      tauEpsilon = tau - epsilon;
 
   function Path() {
     this._x0 = this._y0 = // start of current subpath
@@ -3526,12 +3522,12 @@ var chart = (function (exports) {
       }
 
       // Or, is (x1,y1) coincident with (x0,y0)? Do nothing.
-      else if (!(l01_2 > epsilon$1));
+      else if (!(l01_2 > epsilon));
 
       // Or, are (x0,y0), (x1,y1) and (x2,y2) collinear?
       // Equivalently, is (x1,y1) coincident with (x2,y2)?
       // Or, is the radius zero? Line to (x1,y1).
-      else if (!(Math.abs(y01 * x21 - y21 * x01) > epsilon$1) || !r) {
+      else if (!(Math.abs(y01 * x21 - y21 * x01) > epsilon) || !r) {
         this._ += "L" + (this._x1 = x1) + "," + (this._y1 = y1);
       }
 
@@ -3548,7 +3544,7 @@ var chart = (function (exports) {
             t21 = l / l21;
 
         // If the start tangent is not coincident with (x0,y0), line to.
-        if (Math.abs(t01 - 1) > epsilon$1) {
+        if (Math.abs(t01 - 1) > epsilon) {
           this._ += "L" + (x1 + t01 * x01) + "," + (y1 + t01 * y01);
         }
 
@@ -3573,7 +3569,7 @@ var chart = (function (exports) {
       }
 
       // Or, is (x0,y0) not coincident with the previous point? Line to (x0,y0).
-      else if (Math.abs(this._x1 - x0) > epsilon$1 || Math.abs(this._y1 - y0) > epsilon$1) {
+      else if (Math.abs(this._x1 - x0) > epsilon || Math.abs(this._y1 - y0) > epsilon) {
         this._ += "L" + x0 + "," + y0;
       }
 
@@ -3589,7 +3585,7 @@ var chart = (function (exports) {
       }
 
       // Is this arc non-empty? Draw an arc!
-      else if (da > epsilon$1) {
+      else if (da > epsilon) {
         this._ += "A" + r + "," + r + ",0," + (+(da >= pi)) + "," + cw + "," + (this._x1 = x + r * Math.cos(a1)) + "," + (this._y1 = y + r * Math.sin(a1));
       }
     },
@@ -3601,7 +3597,7 @@ var chart = (function (exports) {
     }
   };
 
-  function constant$2(x) {
+  function constant$1(x) {
     return function constant() {
       return x;
     };
@@ -3654,13 +3650,13 @@ var chart = (function (exports) {
   }
 
   function line(x$1, y$1) {
-    var defined = constant$2(true),
+    var defined = constant$1(true),
         context = null,
         curve = curveLinear,
         output = null;
 
-    x$1 = typeof x$1 === "function" ? x$1 : (x$1 === undefined) ? x : constant$2(x$1);
-    y$1 = typeof y$1 === "function" ? y$1 : (y$1 === undefined) ? y : constant$2(y$1);
+    x$1 = typeof x$1 === "function" ? x$1 : (x$1 === undefined) ? x : constant$1(x$1);
+    y$1 = typeof y$1 === "function" ? y$1 : (y$1 === undefined) ? y : constant$1(y$1);
 
     function line(data) {
       var i,
@@ -3683,15 +3679,15 @@ var chart = (function (exports) {
     }
 
     line.x = function(_) {
-      return arguments.length ? (x$1 = typeof _ === "function" ? _ : constant$2(+_), line) : x$1;
+      return arguments.length ? (x$1 = typeof _ === "function" ? _ : constant$1(+_), line) : x$1;
     };
 
     line.y = function(_) {
-      return arguments.length ? (y$1 = typeof _ === "function" ? _ : constant$2(+_), line) : y$1;
+      return arguments.length ? (y$1 = typeof _ === "function" ? _ : constant$1(+_), line) : y$1;
     };
 
     line.defined = function(_) {
-      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$2(!!_), line) : defined;
+      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$1(!!_), line) : defined;
     };
 
     line.curve = function(_) {
@@ -3707,14 +3703,14 @@ var chart = (function (exports) {
 
   function area(x0, y0, y1) {
     var x1 = null,
-        defined = constant$2(true),
+        defined = constant$1(true),
         context = null,
         curve = curveLinear,
         output = null;
 
-    x0 = typeof x0 === "function" ? x0 : (x0 === undefined) ? x : constant$2(+x0);
-    y0 = typeof y0 === "function" ? y0 : (y0 === undefined) ? constant$2(0) : constant$2(+y0);
-    y1 = typeof y1 === "function" ? y1 : (y1 === undefined) ? y : constant$2(+y1);
+    x0 = typeof x0 === "function" ? x0 : (x0 === undefined) ? x : constant$1(+x0);
+    y0 = typeof y0 === "function" ? y0 : (y0 === undefined) ? constant$1(0) : constant$1(+y0);
+    y1 = typeof y1 === "function" ? y1 : (y1 === undefined) ? y : constant$1(+y1);
 
     function area(data) {
       var i,
@@ -3759,27 +3755,27 @@ var chart = (function (exports) {
     }
 
     area.x = function(_) {
-      return arguments.length ? (x0 = typeof _ === "function" ? _ : constant$2(+_), x1 = null, area) : x0;
+      return arguments.length ? (x0 = typeof _ === "function" ? _ : constant$1(+_), x1 = null, area) : x0;
     };
 
     area.x0 = function(_) {
-      return arguments.length ? (x0 = typeof _ === "function" ? _ : constant$2(+_), area) : x0;
+      return arguments.length ? (x0 = typeof _ === "function" ? _ : constant$1(+_), area) : x0;
     };
 
     area.x1 = function(_) {
-      return arguments.length ? (x1 = _ == null ? null : typeof _ === "function" ? _ : constant$2(+_), area) : x1;
+      return arguments.length ? (x1 = _ == null ? null : typeof _ === "function" ? _ : constant$1(+_), area) : x1;
     };
 
     area.y = function(_) {
-      return arguments.length ? (y0 = typeof _ === "function" ? _ : constant$2(+_), y1 = null, area) : y0;
+      return arguments.length ? (y0 = typeof _ === "function" ? _ : constant$1(+_), y1 = null, area) : y0;
     };
 
     area.y0 = function(_) {
-      return arguments.length ? (y0 = typeof _ === "function" ? _ : constant$2(+_), area) : y0;
+      return arguments.length ? (y0 = typeof _ === "function" ? _ : constant$1(+_), area) : y0;
     };
 
     area.y1 = function(_) {
-      return arguments.length ? (y1 = _ == null ? null : typeof _ === "function" ? _ : constant$2(+_), area) : y1;
+      return arguments.length ? (y1 = _ == null ? null : typeof _ === "function" ? _ : constant$1(+_), area) : y1;
     };
 
     area.lineX0 =
@@ -3796,7 +3792,7 @@ var chart = (function (exports) {
     };
 
     area.defined = function(_) {
-      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$2(!!_), area) : defined;
+      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$1(!!_), area) : defined;
     };
 
     area.curve = function(_) {
@@ -3810,7 +3806,7 @@ var chart = (function (exports) {
     return area;
   }
 
-  function none$1(series, order) {
+  function none$2(series, order) {
     if (!((n = series.length) > 1)) return;
     for (var i = 1, j, s0, s1 = series[order[0]], n, m = s1.length; i < n; ++i) {
       s0 = s1, s1 = series[order[i]];
@@ -3820,7 +3816,7 @@ var chart = (function (exports) {
     }
   }
 
-  function none$2(series) {
+  function none$1(series) {
     var n = series.length, o = new Array(n);
     while (--n >= 0) o[n] = n;
     return o;
@@ -3837,9 +3833,9 @@ var chart = (function (exports) {
   }
 
   function stack() {
-    var keys = constant$2([]),
-        order = none$2,
-        offset = none$1,
+    var keys = constant$1([]),
+        order = none$1,
+        offset = none$2,
         value = stackValue;
 
     function stack(data) {
@@ -3862,19 +3858,19 @@ var chart = (function (exports) {
     }
 
     stack.keys = function(_) {
-      return arguments.length ? (keys = typeof _ === "function" ? _ : constant$2(Array.from(_)), stack) : keys;
+      return arguments.length ? (keys = typeof _ === "function" ? _ : constant$1(Array.from(_)), stack) : keys;
     };
 
     stack.value = function(_) {
-      return arguments.length ? (value = typeof _ === "function" ? _ : constant$2(+_), stack) : value;
+      return arguments.length ? (value = typeof _ === "function" ? _ : constant$1(+_), stack) : value;
     };
 
     stack.order = function(_) {
-      return arguments.length ? (order = _ == null ? none$2 : typeof _ === "function" ? _ : constant$2(Array.from(_)), stack) : order;
+      return arguments.length ? (order = _ == null ? none$1 : typeof _ === "function" ? _ : constant$1(Array.from(_)), stack) : order;
     };
 
     stack.offset = function(_) {
-      return arguments.length ? (offset = _ == null ? none$1 : _, stack) : offset;
+      return arguments.length ? (offset = _ == null ? none$2 : _, stack) : offset;
     };
 
     return stack;
@@ -3886,58 +3882,58 @@ var chart = (function (exports) {
       for (var i = 0, y = 0; i < n; ++i) y += series[i][j][1] || 0;
       s0[j][1] += s0[j][0] = -y / 2;
     }
-    none$1(series, order);
+    none$2(series, order);
   }
 
-  var xhtml$1 = "http://www.w3.org/1999/xhtml";
+  var xhtml = "http://www.w3.org/1999/xhtml";
 
-  var namespaces$1 = {
+  var namespaces = {
     svg: "http://www.w3.org/2000/svg",
-    xhtml: xhtml$1,
+    xhtml: xhtml,
     xlink: "http://www.w3.org/1999/xlink",
     xml: "http://www.w3.org/XML/1998/namespace",
     xmlns: "http://www.w3.org/2000/xmlns/"
   };
 
-  function namespace$1(name) {
+  function namespace(name) {
     var prefix = name += "", i = prefix.indexOf(":");
     if (i >= 0 && (prefix = name.slice(0, i)) !== "xmlns") name = name.slice(i + 1);
-    return namespaces$1.hasOwnProperty(prefix) ? {space: namespaces$1[prefix], local: name} : name; // eslint-disable-line no-prototype-builtins
+    return namespaces.hasOwnProperty(prefix) ? {space: namespaces[prefix], local: name} : name; // eslint-disable-line no-prototype-builtins
   }
 
-  function creatorInherit$1(name) {
+  function creatorInherit(name) {
     return function() {
       var document = this.ownerDocument,
           uri = this.namespaceURI;
-      return uri === xhtml$1 && document.documentElement.namespaceURI === xhtml$1
+      return uri === xhtml && document.documentElement.namespaceURI === xhtml
           ? document.createElement(name)
           : document.createElementNS(uri, name);
     };
   }
 
-  function creatorFixed$1(fullname) {
+  function creatorFixed(fullname) {
     return function() {
       return this.ownerDocument.createElementNS(fullname.space, fullname.local);
     };
   }
 
-  function creator$1(name) {
-    var fullname = namespace$1(name);
+  function creator(name) {
+    var fullname = namespace(name);
     return (fullname.local
-        ? creatorFixed$1
-        : creatorInherit$1)(fullname);
+        ? creatorFixed
+        : creatorInherit)(fullname);
   }
 
-  function none$3() {}
+  function none() {}
 
-  function selector$1(selector) {
-    return selector == null ? none$3 : function() {
+  function selector(selector) {
+    return selector == null ? none : function() {
       return this.querySelector(selector);
     };
   }
 
-  function selection_select$1(select) {
-    if (typeof select !== "function") select = selector$1(select);
+  function selection_select(select) {
+    if (typeof select !== "function") select = selector(select);
 
     for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
       for (var group = groups[j], n = group.length, subgroup = subgroups[j] = new Array(n), node, subnode, i = 0; i < n; ++i) {
@@ -3948,35 +3944,35 @@ var chart = (function (exports) {
       }
     }
 
-    return new Selection$1(subgroups, this._parents);
+    return new Selection(subgroups, this._parents);
   }
 
-  function array$2(x) {
+  function array(x) {
     return typeof x === "object" && "length" in x
       ? x // Array, TypedArray, NodeList, array-like
       : Array.from(x); // Map, Set, iterable, string, or anything else
   }
 
-  function empty$1() {
+  function empty() {
     return [];
   }
 
-  function selectorAll$1(selector) {
-    return selector == null ? empty$1 : function() {
+  function selectorAll(selector) {
+    return selector == null ? empty : function() {
       return this.querySelectorAll(selector);
     };
   }
 
-  function arrayAll$1(select) {
+  function arrayAll(select) {
     return function() {
       var group = select.apply(this, arguments);
-      return group == null ? [] : array$2(group);
+      return group == null ? [] : array(group);
     };
   }
 
-  function selection_selectAll$1(select) {
-    if (typeof select === "function") select = arrayAll$1(select);
-    else select = selectorAll$1(select);
+  function selection_selectAll(select) {
+    if (typeof select === "function") select = arrayAll(select);
+    else select = selectorAll(select);
 
     for (var groups = this._groups, m = groups.length, subgroups = [], parents = [], j = 0; j < m; ++j) {
       for (var group = groups[j], n = group.length, node, i = 0; i < n; ++i) {
@@ -3987,57 +3983,57 @@ var chart = (function (exports) {
       }
     }
 
-    return new Selection$1(subgroups, parents);
+    return new Selection(subgroups, parents);
   }
 
-  function matcher$1(selector) {
+  function matcher(selector) {
     return function() {
       return this.matches(selector);
     };
   }
 
-  function childMatcher$1(selector) {
+  function childMatcher(selector) {
     return function(node) {
       return node.matches(selector);
     };
   }
 
-  var find$1 = Array.prototype.find;
+  var find = Array.prototype.find;
 
-  function childFind$1(match) {
+  function childFind(match) {
     return function() {
-      return find$1.call(this.children, match);
+      return find.call(this.children, match);
     };
   }
 
-  function childFirst$1() {
+  function childFirst() {
     return this.firstElementChild;
   }
 
-  function selection_selectChild$1(match) {
-    return this.select(match == null ? childFirst$1
-        : childFind$1(typeof match === "function" ? match : childMatcher$1(match)));
+  function selection_selectChild(match) {
+    return this.select(match == null ? childFirst
+        : childFind(typeof match === "function" ? match : childMatcher(match)));
   }
 
-  var filter$1 = Array.prototype.filter;
+  var filter = Array.prototype.filter;
 
-  function children$1() {
+  function children() {
     return this.children;
   }
 
-  function childrenFilter$1(match) {
+  function childrenFilter(match) {
     return function() {
-      return filter$1.call(this.children, match);
+      return filter.call(this.children, match);
     };
   }
 
-  function selection_selectChildren$1(match) {
-    return this.selectAll(match == null ? children$1
-        : childrenFilter$1(typeof match === "function" ? match : childMatcher$1(match)));
+  function selection_selectChildren(match) {
+    return this.selectAll(match == null ? children
+        : childrenFilter(typeof match === "function" ? match : childMatcher(match)));
   }
 
-  function selection_filter$1(match) {
-    if (typeof match !== "function") match = matcher$1(match);
+  function selection_filter(match) {
+    if (typeof match !== "function") match = matcher(match);
 
     for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
       for (var group = groups[j], n = group.length, subgroup = subgroups[j] = [], node, i = 0; i < n; ++i) {
@@ -4047,18 +4043,18 @@ var chart = (function (exports) {
       }
     }
 
-    return new Selection$1(subgroups, this._parents);
+    return new Selection(subgroups, this._parents);
   }
 
-  function sparse$1(update) {
+  function sparse(update) {
     return new Array(update.length);
   }
 
-  function selection_enter$1() {
-    return new Selection$1(this._enter || this._groups.map(sparse$1), this._parents);
+  function selection_enter() {
+    return new Selection(this._enter || this._groups.map(sparse), this._parents);
   }
 
-  function EnterNode$1(parent, datum) {
+  function EnterNode(parent, datum) {
     this.ownerDocument = parent.ownerDocument;
     this.namespaceURI = parent.namespaceURI;
     this._next = null;
@@ -4066,21 +4062,21 @@ var chart = (function (exports) {
     this.__data__ = datum;
   }
 
-  EnterNode$1.prototype = {
-    constructor: EnterNode$1,
+  EnterNode.prototype = {
+    constructor: EnterNode,
     appendChild: function(child) { return this._parent.insertBefore(child, this._next); },
     insertBefore: function(child, next) { return this._parent.insertBefore(child, next); },
     querySelector: function(selector) { return this._parent.querySelector(selector); },
     querySelectorAll: function(selector) { return this._parent.querySelectorAll(selector); }
   };
 
-  function constant$3(x) {
+  function constant(x) {
     return function() {
       return x;
     };
   }
 
-  function bindIndex$1(parent, group, enter, update, exit, data) {
+  function bindIndex(parent, group, enter, update, exit, data) {
     var i = 0,
         node,
         groupLength = group.length,
@@ -4094,7 +4090,7 @@ var chart = (function (exports) {
         node.__data__ = data[i];
         update[i] = node;
       } else {
-        enter[i] = new EnterNode$1(parent, data[i]);
+        enter[i] = new EnterNode(parent, data[i]);
       }
     }
 
@@ -4106,7 +4102,7 @@ var chart = (function (exports) {
     }
   }
 
-  function bindKey$1(parent, group, enter, update, exit, data, key) {
+  function bindKey(parent, group, enter, update, exit, data, key) {
     var i,
         node,
         nodeByKeyValue = new Map,
@@ -4138,7 +4134,7 @@ var chart = (function (exports) {
         node.__data__ = data[i];
         nodeByKeyValue.delete(keyValue);
       } else {
-        enter[i] = new EnterNode$1(parent, data[i]);
+        enter[i] = new EnterNode(parent, data[i]);
       }
     }
 
@@ -4150,24 +4146,24 @@ var chart = (function (exports) {
     }
   }
 
-  function datum$1(node) {
+  function datum(node) {
     return node.__data__;
   }
 
-  function selection_data$1(value, key) {
-    if (!arguments.length) return Array.from(this, datum$1);
+  function selection_data(value, key) {
+    if (!arguments.length) return Array.from(this, datum);
 
-    var bind = key ? bindKey$1 : bindIndex$1,
+    var bind = key ? bindKey : bindIndex,
         parents = this._parents,
         groups = this._groups;
 
-    if (typeof value !== "function") value = constant$3(value);
+    if (typeof value !== "function") value = constant(value);
 
     for (var m = groups.length, update = new Array(m), enter = new Array(m), exit = new Array(m), j = 0; j < m; ++j) {
       var parent = parents[j],
           group = groups[j],
           groupLength = group.length,
-          data = array$2(value.call(parent, parent && parent.__data__, j, parents)),
+          data = array(value.call(parent, parent && parent.__data__, j, parents)),
           dataLength = data.length,
           enterGroup = enter[j] = new Array(dataLength),
           updateGroup = update[j] = new Array(dataLength),
@@ -4187,17 +4183,17 @@ var chart = (function (exports) {
       }
     }
 
-    update = new Selection$1(update, parents);
+    update = new Selection(update, parents);
     update._enter = enter;
     update._exit = exit;
     return update;
   }
 
-  function selection_exit$1() {
-    return new Selection$1(this._exit || this._groups.map(sparse$1), this._parents);
+  function selection_exit() {
+    return new Selection(this._exit || this._groups.map(sparse), this._parents);
   }
 
-  function selection_join$1(onenter, onupdate, onexit) {
+  function selection_join(onenter, onupdate, onexit) {
     var enter = this.enter(), update = this, exit = this.exit();
     enter = typeof onenter === "function" ? onenter(enter) : enter.append(onenter + "");
     if (onupdate != null) update = onupdate(update);
@@ -4205,8 +4201,8 @@ var chart = (function (exports) {
     return enter && update ? enter.merge(update).order() : update;
   }
 
-  function selection_merge$1(selection) {
-    if (!(selection instanceof Selection$1)) throw new Error("invalid merge");
+  function selection_merge(selection) {
+    if (!(selection instanceof Selection)) throw new Error("invalid merge");
 
     for (var groups0 = this._groups, groups1 = selection._groups, m0 = groups0.length, m1 = groups1.length, m = Math.min(m0, m1), merges = new Array(m0), j = 0; j < m; ++j) {
       for (var group0 = groups0[j], group1 = groups1[j], n = group0.length, merge = merges[j] = new Array(n), node, i = 0; i < n; ++i) {
@@ -4220,10 +4216,10 @@ var chart = (function (exports) {
       merges[j] = groups0[j];
     }
 
-    return new Selection$1(merges, this._parents);
+    return new Selection(merges, this._parents);
   }
 
-  function selection_order$1() {
+  function selection_order() {
 
     for (var groups = this._groups, j = -1, m = groups.length; ++j < m;) {
       for (var group = groups[j], i = group.length - 1, next = group[i], node; --i >= 0;) {
@@ -4237,8 +4233,8 @@ var chart = (function (exports) {
     return this;
   }
 
-  function selection_sort$1(compare) {
-    if (!compare) compare = ascending$2;
+  function selection_sort(compare) {
+    if (!compare) compare = ascending;
 
     function compareNode(a, b) {
       return a && b ? compare(a.__data__, b.__data__) : !a - !b;
@@ -4253,25 +4249,25 @@ var chart = (function (exports) {
       sortgroup.sort(compareNode);
     }
 
-    return new Selection$1(sortgroups, this._parents).order();
+    return new Selection(sortgroups, this._parents).order();
   }
 
-  function ascending$2(a, b) {
+  function ascending(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
-  function selection_call$1() {
+  function selection_call() {
     var callback = arguments[0];
     arguments[0] = this;
     callback.apply(null, arguments);
     return this;
   }
 
-  function selection_nodes$1() {
+  function selection_nodes() {
     return Array.from(this);
   }
 
-  function selection_node$1() {
+  function selection_node() {
 
     for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
       for (var group = groups[j], i = 0, n = group.length; i < n; ++i) {
@@ -4283,17 +4279,17 @@ var chart = (function (exports) {
     return null;
   }
 
-  function selection_size$1() {
+  function selection_size() {
     let size = 0;
     for (const node of this) ++size; // eslint-disable-line no-unused-vars
     return size;
   }
 
-  function selection_empty$1() {
+  function selection_empty() {
     return !this.node();
   }
 
-  function selection_each$1(callback) {
+  function selection_each(callback) {
 
     for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
       for (var group = groups[j], i = 0, n = group.length, node; i < n; ++i) {
@@ -4304,31 +4300,31 @@ var chart = (function (exports) {
     return this;
   }
 
-  function attrRemove$1(name) {
+  function attrRemove(name) {
     return function() {
       this.removeAttribute(name);
     };
   }
 
-  function attrRemoveNS$1(fullname) {
+  function attrRemoveNS(fullname) {
     return function() {
       this.removeAttributeNS(fullname.space, fullname.local);
     };
   }
 
-  function attrConstant$1(name, value) {
+  function attrConstant(name, value) {
     return function() {
       this.setAttribute(name, value);
     };
   }
 
-  function attrConstantNS$1(fullname, value) {
+  function attrConstantNS(fullname, value) {
     return function() {
       this.setAttributeNS(fullname.space, fullname.local, value);
     };
   }
 
-  function attrFunction$1(name, value) {
+  function attrFunction(name, value) {
     return function() {
       var v = value.apply(this, arguments);
       if (v == null) this.removeAttribute(name);
@@ -4336,7 +4332,7 @@ var chart = (function (exports) {
     };
   }
 
-  function attrFunctionNS$1(fullname, value) {
+  function attrFunctionNS(fullname, value) {
     return function() {
       var v = value.apply(this, arguments);
       if (v == null) this.removeAttributeNS(fullname.space, fullname.local);
@@ -4344,8 +4340,8 @@ var chart = (function (exports) {
     };
   }
 
-  function selection_attr$1(name, value) {
-    var fullname = namespace$1(name);
+  function selection_attr(name, value) {
+    var fullname = namespace(name);
 
     if (arguments.length < 2) {
       var node = this.node();
@@ -4355,30 +4351,30 @@ var chart = (function (exports) {
     }
 
     return this.each((value == null
-        ? (fullname.local ? attrRemoveNS$1 : attrRemove$1) : (typeof value === "function"
-        ? (fullname.local ? attrFunctionNS$1 : attrFunction$1)
-        : (fullname.local ? attrConstantNS$1 : attrConstant$1)))(fullname, value));
+        ? (fullname.local ? attrRemoveNS : attrRemove) : (typeof value === "function"
+        ? (fullname.local ? attrFunctionNS : attrFunction)
+        : (fullname.local ? attrConstantNS : attrConstant)))(fullname, value));
   }
 
-  function defaultView$1(node) {
+  function defaultView(node) {
     return (node.ownerDocument && node.ownerDocument.defaultView) // node is a Node
         || (node.document && node) // node is a Window
         || node.defaultView; // node is a Document
   }
 
-  function styleRemove$1(name) {
+  function styleRemove(name) {
     return function() {
       this.style.removeProperty(name);
     };
   }
 
-  function styleConstant$1(name, value, priority) {
+  function styleConstant(name, value, priority) {
     return function() {
       this.style.setProperty(name, value, priority);
     };
   }
 
-  function styleFunction$1(name, value, priority) {
+  function styleFunction(name, value, priority) {
     return function() {
       var v = value.apply(this, arguments);
       if (v == null) this.style.removeProperty(name);
@@ -4386,33 +4382,33 @@ var chart = (function (exports) {
     };
   }
 
-  function selection_style$1(name, value, priority) {
+  function selection_style(name, value, priority) {
     return arguments.length > 1
         ? this.each((value == null
-              ? styleRemove$1 : typeof value === "function"
-              ? styleFunction$1
-              : styleConstant$1)(name, value, priority == null ? "" : priority))
-        : styleValue$1(this.node(), name);
+              ? styleRemove : typeof value === "function"
+              ? styleFunction
+              : styleConstant)(name, value, priority == null ? "" : priority))
+        : styleValue(this.node(), name);
   }
 
-  function styleValue$1(node, name) {
+  function styleValue(node, name) {
     return node.style.getPropertyValue(name)
-        || defaultView$1(node).getComputedStyle(node, null).getPropertyValue(name);
+        || defaultView(node).getComputedStyle(node, null).getPropertyValue(name);
   }
 
-  function propertyRemove$1(name) {
+  function propertyRemove(name) {
     return function() {
       delete this[name];
     };
   }
 
-  function propertyConstant$1(name, value) {
+  function propertyConstant(name, value) {
     return function() {
       this[name] = value;
     };
   }
 
-  function propertyFunction$1(name, value) {
+  function propertyFunction(name, value) {
     return function() {
       var v = value.apply(this, arguments);
       if (v == null) delete this[name];
@@ -4420,29 +4416,29 @@ var chart = (function (exports) {
     };
   }
 
-  function selection_property$1(name, value) {
+  function selection_property(name, value) {
     return arguments.length > 1
         ? this.each((value == null
-            ? propertyRemove$1 : typeof value === "function"
-            ? propertyFunction$1
-            : propertyConstant$1)(name, value))
+            ? propertyRemove : typeof value === "function"
+            ? propertyFunction
+            : propertyConstant)(name, value))
         : this.node()[name];
   }
 
-  function classArray$1(string) {
+  function classArray(string) {
     return string.trim().split(/^|\s+/);
   }
 
-  function classList$1(node) {
-    return node.classList || new ClassList$1(node);
+  function classList(node) {
+    return node.classList || new ClassList(node);
   }
 
-  function ClassList$1(node) {
+  function ClassList(node) {
     this._node = node;
-    this._names = classArray$1(node.getAttribute("class") || "");
+    this._names = classArray(node.getAttribute("class") || "");
   }
 
-  ClassList$1.prototype = {
+  ClassList.prototype = {
     add: function(name) {
       var i = this._names.indexOf(name);
       if (i < 0) {
@@ -4462,172 +4458,172 @@ var chart = (function (exports) {
     }
   };
 
-  function classedAdd$1(node, names) {
-    var list = classList$1(node), i = -1, n = names.length;
+  function classedAdd(node, names) {
+    var list = classList(node), i = -1, n = names.length;
     while (++i < n) list.add(names[i]);
   }
 
-  function classedRemove$1(node, names) {
-    var list = classList$1(node), i = -1, n = names.length;
+  function classedRemove(node, names) {
+    var list = classList(node), i = -1, n = names.length;
     while (++i < n) list.remove(names[i]);
   }
 
-  function classedTrue$1(names) {
+  function classedTrue(names) {
     return function() {
-      classedAdd$1(this, names);
+      classedAdd(this, names);
     };
   }
 
-  function classedFalse$1(names) {
+  function classedFalse(names) {
     return function() {
-      classedRemove$1(this, names);
+      classedRemove(this, names);
     };
   }
 
-  function classedFunction$1(names, value) {
+  function classedFunction(names, value) {
     return function() {
-      (value.apply(this, arguments) ? classedAdd$1 : classedRemove$1)(this, names);
+      (value.apply(this, arguments) ? classedAdd : classedRemove)(this, names);
     };
   }
 
-  function selection_classed$1(name, value) {
-    var names = classArray$1(name + "");
+  function selection_classed(name, value) {
+    var names = classArray(name + "");
 
     if (arguments.length < 2) {
-      var list = classList$1(this.node()), i = -1, n = names.length;
+      var list = classList(this.node()), i = -1, n = names.length;
       while (++i < n) if (!list.contains(names[i])) return false;
       return true;
     }
 
     return this.each((typeof value === "function"
-        ? classedFunction$1 : value
-        ? classedTrue$1
-        : classedFalse$1)(names, value));
+        ? classedFunction : value
+        ? classedTrue
+        : classedFalse)(names, value));
   }
 
-  function textRemove$1() {
+  function textRemove() {
     this.textContent = "";
   }
 
-  function textConstant$1(value) {
+  function textConstant(value) {
     return function() {
       this.textContent = value;
     };
   }
 
-  function textFunction$1(value) {
+  function textFunction(value) {
     return function() {
       var v = value.apply(this, arguments);
       this.textContent = v == null ? "" : v;
     };
   }
 
-  function selection_text$1(value) {
+  function selection_text(value) {
     return arguments.length
         ? this.each(value == null
-            ? textRemove$1 : (typeof value === "function"
-            ? textFunction$1
-            : textConstant$1)(value))
+            ? textRemove : (typeof value === "function"
+            ? textFunction
+            : textConstant)(value))
         : this.node().textContent;
   }
 
-  function htmlRemove$1() {
+  function htmlRemove() {
     this.innerHTML = "";
   }
 
-  function htmlConstant$1(value) {
+  function htmlConstant(value) {
     return function() {
       this.innerHTML = value;
     };
   }
 
-  function htmlFunction$1(value) {
+  function htmlFunction(value) {
     return function() {
       var v = value.apply(this, arguments);
       this.innerHTML = v == null ? "" : v;
     };
   }
 
-  function selection_html$1(value) {
+  function selection_html(value) {
     return arguments.length
         ? this.each(value == null
-            ? htmlRemove$1 : (typeof value === "function"
-            ? htmlFunction$1
-            : htmlConstant$1)(value))
+            ? htmlRemove : (typeof value === "function"
+            ? htmlFunction
+            : htmlConstant)(value))
         : this.node().innerHTML;
   }
 
-  function raise$1() {
+  function raise() {
     if (this.nextSibling) this.parentNode.appendChild(this);
   }
 
-  function selection_raise$1() {
-    return this.each(raise$1);
+  function selection_raise() {
+    return this.each(raise);
   }
 
-  function lower$1() {
+  function lower() {
     if (this.previousSibling) this.parentNode.insertBefore(this, this.parentNode.firstChild);
   }
 
-  function selection_lower$1() {
-    return this.each(lower$1);
+  function selection_lower() {
+    return this.each(lower);
   }
 
-  function selection_append$1(name) {
-    var create = typeof name === "function" ? name : creator$1(name);
+  function selection_append(name) {
+    var create = typeof name === "function" ? name : creator(name);
     return this.select(function() {
       return this.appendChild(create.apply(this, arguments));
     });
   }
 
-  function constantNull$1() {
+  function constantNull() {
     return null;
   }
 
-  function selection_insert$1(name, before) {
-    var create = typeof name === "function" ? name : creator$1(name),
-        select = before == null ? constantNull$1 : typeof before === "function" ? before : selector$1(before);
+  function selection_insert(name, before) {
+    var create = typeof name === "function" ? name : creator(name),
+        select = before == null ? constantNull : typeof before === "function" ? before : selector(before);
     return this.select(function() {
       return this.insertBefore(create.apply(this, arguments), select.apply(this, arguments) || null);
     });
   }
 
-  function remove$1() {
+  function remove() {
     var parent = this.parentNode;
     if (parent) parent.removeChild(this);
   }
 
-  function selection_remove$1() {
-    return this.each(remove$1);
+  function selection_remove() {
+    return this.each(remove);
   }
 
-  function selection_cloneShallow$1() {
+  function selection_cloneShallow() {
     var clone = this.cloneNode(false), parent = this.parentNode;
     return parent ? parent.insertBefore(clone, this.nextSibling) : clone;
   }
 
-  function selection_cloneDeep$1() {
+  function selection_cloneDeep() {
     var clone = this.cloneNode(true), parent = this.parentNode;
     return parent ? parent.insertBefore(clone, this.nextSibling) : clone;
   }
 
-  function selection_clone$1(deep) {
-    return this.select(deep ? selection_cloneDeep$1 : selection_cloneShallow$1);
+  function selection_clone(deep) {
+    return this.select(deep ? selection_cloneDeep : selection_cloneShallow);
   }
 
-  function selection_datum$1(value) {
+  function selection_datum(value) {
     return arguments.length
         ? this.property("__data__", value)
         : this.node().__data__;
   }
 
-  function contextListener$1(listener) {
+  function contextListener(listener) {
     return function(event) {
       listener.call(this, event, this.__data__);
     };
   }
 
-  function parseTypenames$1(typenames) {
+  function parseTypenames(typenames) {
     return typenames.trim().split(/^|\s+/).map(function(t) {
       var name = "", i = t.indexOf(".");
       if (i >= 0) name = t.slice(i + 1), t = t.slice(0, i);
@@ -4635,7 +4631,7 @@ var chart = (function (exports) {
     });
   }
 
-  function onRemove$1(typename) {
+  function onRemove(typename) {
     return function() {
       var on = this.__on;
       if (!on) return;
@@ -4651,9 +4647,9 @@ var chart = (function (exports) {
     };
   }
 
-  function onAdd$1(typename, value, options) {
+  function onAdd(typename, value, options) {
     return function() {
-      var on = this.__on, o, listener = contextListener$1(value);
+      var on = this.__on, o, listener = contextListener(value);
       if (on) for (var j = 0, m = on.length; j < m; ++j) {
         if ((o = on[j]).type === typename.type && o.name === typename.name) {
           this.removeEventListener(o.type, o.listener, o.options);
@@ -4669,8 +4665,8 @@ var chart = (function (exports) {
     };
   }
 
-  function selection_on$1(typename, value, options) {
-    var typenames = parseTypenames$1(typename + ""), i, n = typenames.length, t;
+  function selection_on(typename, value, options) {
+    var typenames = parseTypenames(typename + ""), i, n = typenames.length, t;
 
     if (arguments.length < 2) {
       var on = this.node().__on;
@@ -4684,13 +4680,13 @@ var chart = (function (exports) {
       return;
     }
 
-    on = value ? onAdd$1 : onRemove$1;
+    on = value ? onAdd : onRemove;
     for (i = 0; i < n; ++i) this.each(on(typenames[i], value, options));
     return this;
   }
 
-  function dispatchEvent$1(node, type, params) {
-    var window = defaultView$1(node),
+  function dispatchEvent(node, type, params) {
+    var window = defaultView(node),
         event = window.CustomEvent;
 
     if (typeof event === "function") {
@@ -4704,25 +4700,25 @@ var chart = (function (exports) {
     node.dispatchEvent(event);
   }
 
-  function dispatchConstant$1(type, params) {
+  function dispatchConstant(type, params) {
     return function() {
-      return dispatchEvent$1(this, type, params);
+      return dispatchEvent(this, type, params);
     };
   }
 
-  function dispatchFunction$1(type, params) {
+  function dispatchFunction(type, params) {
     return function() {
-      return dispatchEvent$1(this, type, params.apply(this, arguments));
+      return dispatchEvent(this, type, params.apply(this, arguments));
     };
   }
 
-  function selection_dispatch$1(type, params) {
+  function selection_dispatch(type, params) {
     return this.each((typeof params === "function"
-        ? dispatchFunction$1
-        : dispatchConstant$1)(type, params));
+        ? dispatchFunction
+        : dispatchConstant)(type, params));
   }
 
-  function* selection_iterator$1() {
+  function* selection_iterator() {
     for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
       for (var group = groups[j], i = 0, n = group.length, node; i < n; ++i) {
         if (node = group[i]) yield node;
@@ -4730,73 +4726,69 @@ var chart = (function (exports) {
     }
   }
 
-  var root$1 = [null];
+  var root = [null];
 
-  function Selection$1(groups, parents) {
+  function Selection(groups, parents) {
     this._groups = groups;
     this._parents = parents;
   }
 
-  function selection$1() {
-    return new Selection$1([[document.documentElement]], root$1);
-  }
-
-  function selection_selection$1() {
+  function selection_selection() {
     return this;
   }
 
-  Selection$1.prototype = selection$1.prototype = {
-    constructor: Selection$1,
-    select: selection_select$1,
-    selectAll: selection_selectAll$1,
-    selectChild: selection_selectChild$1,
-    selectChildren: selection_selectChildren$1,
-    filter: selection_filter$1,
-    data: selection_data$1,
-    enter: selection_enter$1,
-    exit: selection_exit$1,
-    join: selection_join$1,
-    merge: selection_merge$1,
-    selection: selection_selection$1,
-    order: selection_order$1,
-    sort: selection_sort$1,
-    call: selection_call$1,
-    nodes: selection_nodes$1,
-    node: selection_node$1,
-    size: selection_size$1,
-    empty: selection_empty$1,
-    each: selection_each$1,
-    attr: selection_attr$1,
-    style: selection_style$1,
-    property: selection_property$1,
-    classed: selection_classed$1,
-    text: selection_text$1,
-    html: selection_html$1,
-    raise: selection_raise$1,
-    lower: selection_lower$1,
-    append: selection_append$1,
-    insert: selection_insert$1,
-    remove: selection_remove$1,
-    clone: selection_clone$1,
-    datum: selection_datum$1,
-    on: selection_on$1,
-    dispatch: selection_dispatch$1,
-    [Symbol.iterator]: selection_iterator$1
+  Selection.prototype = {
+    constructor: Selection,
+    select: selection_select,
+    selectAll: selection_selectAll,
+    selectChild: selection_selectChild,
+    selectChildren: selection_selectChildren,
+    filter: selection_filter,
+    data: selection_data,
+    enter: selection_enter,
+    exit: selection_exit,
+    join: selection_join,
+    merge: selection_merge,
+    selection: selection_selection,
+    order: selection_order,
+    sort: selection_sort,
+    call: selection_call,
+    nodes: selection_nodes,
+    node: selection_node,
+    size: selection_size,
+    empty: selection_empty,
+    each: selection_each,
+    attr: selection_attr,
+    style: selection_style,
+    property: selection_property,
+    classed: selection_classed,
+    text: selection_text,
+    html: selection_html,
+    raise: selection_raise,
+    lower: selection_lower,
+    append: selection_append,
+    insert: selection_insert,
+    remove: selection_remove,
+    clone: selection_clone,
+    datum: selection_datum,
+    on: selection_on,
+    dispatch: selection_dispatch,
+    [Symbol.iterator]: selection_iterator
   };
 
-  function select$1(selector) {
+  function select(selector) {
     return typeof selector === "string"
-        ? new Selection$1([[document.querySelector(selector)]], [document.documentElement])
-        : new Selection$1([[selector]], root$1);
+        ? new Selection([[document.querySelector(selector)]], [document.documentElement])
+        : new Selection([[selector]], root);
   }
 
-  function selectAll$1(selector) {
+  function selectAll(selector) {
     return typeof selector === "string"
-        ? new Selection$1([document.querySelectorAll(selector)], [document.documentElement])
-        : new Selection$1([selector == null ? [] : array$2(selector)], root$1);
+        ? new Selection([document.querySelectorAll(selector)], [document.documentElement])
+        : new Selection([selector == null ? [] : array(selector)], root);
   }
 
-  function initRange$1(domain, range) {
+  function initRange(domain, range) {
     switch (arguments.length) {
       case 0: break;
       case 1: this.range(domain); break;
@@ -4845,7 +4837,7 @@ var chart = (function (exports) {
       return ordinal(domain, range).unknown(unknown);
     };
 
-    initRange$1.apply(scale, arguments);
+    initRange.apply(scale, arguments);
 
     return scale;
   }
@@ -5148,7 +5140,7 @@ var chart = (function (exports) {
       'blur',
       'focus'
   ];
-  var time$1 = function (timeout) {
+  var time = function (timeout) {
       if (timeout === void 0) { timeout = 0; }
       return Date.now() + timeout;
   };
@@ -5166,7 +5158,7 @@ var chart = (function (exports) {
               return;
           }
           scheduled = true;
-          var until = time$1(timeout);
+          var until = time(timeout);
           queueResizeObserver(function () {
               var elementsHaveResized = false;
               try {
@@ -5174,7 +5166,7 @@ var chart = (function (exports) {
               }
               finally {
                   scheduled = false;
-                  timeout = until - time$1();
+                  timeout = until - time();
                   if (!isWatching()) {
                       return;
                   }
@@ -5449,24 +5441,24 @@ var chart = (function (exports) {
        * Clears selection from chart
        */
       clearSelection() {
-          selectAll$1(".selected").classed("selected", false);
-          selectAll$1(".fade").classed("fade", false);
+          selectAll(".selected").classed("selected", false);
+          selectAll(".fade").classed("fade", false);
       }
       /**
        * Removes this chart from the DOM
        */
       destroy() {
-          select$1(this.container).select("svg").remove();
+          select(this.container).select("svg").remove();
           return this;
       }
       draw() {
-          if (select$1(this.container).select("svg").empty()) {
+          if (select(this.container).select("svg").empty()) {
               let sg = svg(this.container, {
                   height: this.h,
                   margin: this.margin,
                   width: this.w
               });
-              const s = select$1(sg)
+              const s = select(sg)
                   .on("click", () => this.clearSelection());
               this.canvas = s.select(".canvas");
           }
@@ -5621,7 +5613,7 @@ var chart = (function (exports) {
               svg.classList.add("streamchart");
               svg.id = this.id;
           }
-          select(svg)
+          select$1(svg)
               .on("mousemove", (event) => this._canvasMouseMoveHandler(event));
           return this;
       }
@@ -5675,7 +5667,7 @@ var chart = (function (exports) {
           const selected = this.canvas.select(".selected");
           const el = (selected.empty() ? event.target : selected.node());
           const [x, y] = pointer(event);
-          const d = select(el).datum();
+          const d = select$1(el).datum();
           const mouseDate = this.scale.x.invert(x);
           if (mouseDate === undefined) {
               return;
@@ -5714,13 +5706,13 @@ var chart = (function (exports) {
           const el = event.target;
           this.clearSelection();
           window.dispatchEvent(new CustomEvent("stream-selected", { detail: el }));
-          selectAll("path.streamchart")
+          selectAll$1("path.streamchart")
               .each((d, i, n) => {
               if (n[i] === el) {
-                  select(el).classed("selected", true);
+                  select$1(el).classed("selected", true);
               }
               else {
-                  select(n[i]).classed("fade", true);
+                  select$1(n[i]).classed("fade", true);
               }
           });
       }
@@ -5728,8 +5720,8 @@ var chart = (function (exports) {
        * Calculates the chart scale
        */
       _scaling() {
-          this.scale.x = time().domain(this._extentX).range([0, this.rw]).nice(this.ticksX);
-          this.scale.y = linear$1().domain(this._extentY).range([this.rh, 0]);
+          this.scale.x = time$1().domain(this._extentX).range([0, this.rw]).nice(this.ticksX);
+          this.scale.y = linear().domain(this._extentY).range([this.rh, 0]);
           return this;
       }
       /**
