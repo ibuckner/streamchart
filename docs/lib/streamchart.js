@@ -1,17 +1,21 @@
 var chart = (function (exports) {
   'use strict';
 
-  function ascending$2(a, b) {
-    return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
+  function ascending$3(a, b) {
+    return a == null || b == null ? NaN
+      : a < b ? -1
+      : a > b ? 1
+      : a >= b ? 0
+      : NaN;
   }
 
-  function bisector(f) {
+  function bisector$1(f) {
     let delta = f;
     let compare = f;
 
     if (f.length === 1) {
       delta = (d, x) => f(d) - x;
-      compare = ascendingComparator(f);
+      compare = ascendingComparator$1(f);
     }
 
     function left(a, x, lo, hi) {
@@ -46,17 +50,9 @@ var chart = (function (exports) {
     return {left, center, right};
   }
 
-  function ascendingComparator(f) {
-    return (d, x) => ascending$2(f(d), x);
+  function ascendingComparator$1(f) {
+    return (d, x) => ascending$3(f(d), x);
   }
-
-  function number$3(x) {
-    return x === null ? NaN : +x;
-  }
-
-  const ascendingBisect = bisector(ascending$2);
-  const bisectRight = ascendingBisect.right;
-  bisector(number$3).center;
 
   function extent(values, valueof) {
     let min;
@@ -88,63 +84,6 @@ var chart = (function (exports) {
     return [min, max];
   }
 
-  var e10 = Math.sqrt(50),
-      e5 = Math.sqrt(10),
-      e2 = Math.sqrt(2);
-
-  function ticks(start, stop, count) {
-    var reverse,
-        i = -1,
-        n,
-        ticks,
-        step;
-
-    stop = +stop, start = +start, count = +count;
-    if (start === stop && count > 0) return [start];
-    if (reverse = stop < start) n = start, start = stop, stop = n;
-    if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
-
-    if (step > 0) {
-      let r0 = Math.round(start / step), r1 = Math.round(stop / step);
-      if (r0 * step < start) ++r0;
-      if (r1 * step > stop) --r1;
-      ticks = new Array(n = r1 - r0 + 1);
-      while (++i < n) ticks[i] = (r0 + i) * step;
-    } else {
-      step = -step;
-      let r0 = Math.round(start * step), r1 = Math.round(stop * step);
-      if (r0 / step < start) ++r0;
-      if (r1 / step > stop) --r1;
-      ticks = new Array(n = r1 - r0 + 1);
-      while (++i < n) ticks[i] = (r0 + i) / step;
-    }
-
-    if (reverse) ticks.reverse();
-
-    return ticks;
-  }
-
-  function tickIncrement(start, stop, count) {
-    var step = (stop - start) / Math.max(0, count),
-        power = Math.floor(Math.log(step) / Math.LN10),
-        error = step / Math.pow(10, power);
-    return power >= 0
-        ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
-        : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
-  }
-
-  function tickStep(start, stop, count) {
-    var step0 = Math.abs(stop - start) / Math.max(0, count),
-        step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
-        error = step0 / step1;
-    if (error >= e10) step1 *= 10;
-    else if (error >= e5) step1 *= 5;
-    else if (error >= e2) step1 *= 2;
-    return stop < start ? -step1 : step1;
-  }
-
-  var slice = Array.prototype.slice;
-
   function identity$2(x) {
     return x;
   }
@@ -163,7 +102,7 @@ var chart = (function (exports) {
     return "translate(0," + y + ")";
   }
 
-  function number$2(scale) {
+  function number$3(scale) {
     return d => +scale(d);
   }
 
@@ -196,7 +135,7 @@ var chart = (function (exports) {
           range = scale.range(),
           range0 = +range[0] + offset,
           range1 = +range[range.length - 1] + offset,
-          position = (scale.bandwidth ? center : number$2)(scale.copy(), offset),
+          position = (scale.bandwidth ? center : number$3)(scale.copy(), offset),
           selection = context.selection ? context.selection() : context,
           path = selection.selectAll(".domain").data([null]),
           tick = selection.selectAll(".tick").data(values, scale).order(),
@@ -268,15 +207,15 @@ var chart = (function (exports) {
     };
 
     axis.ticks = function() {
-      return tickArguments = slice.call(arguments), axis;
+      return tickArguments = Array.from(arguments), axis;
     };
 
     axis.tickArguments = function(_) {
-      return arguments.length ? (tickArguments = _ == null ? [] : slice.call(_), axis) : tickArguments.slice();
+      return arguments.length ? (tickArguments = _ == null ? [] : Array.from(_), axis) : tickArguments.slice();
     };
 
     axis.tickValues = function(_) {
-      return arguments.length ? (tickValues = _ == null ? null : slice.call(_), axis) : tickValues && tickValues.slice();
+      return arguments.length ? (tickValues = _ == null ? null : Array.from(_), axis) : tickValues && tickValues.slice();
     };
 
     axis.tickFormat = function(_) {
@@ -372,10 +311,14 @@ var chart = (function (exports) {
     return new Selection$1(subgroups, this._parents);
   }
 
+  // Given something array like (or null), returns something that is strictly an
+  // array. This is used to ensure that array-like objects passed to d3.selectAll
+  // or selection.selectAll are converted into proper arrays when creating a
+  // selection; we don’t ever want to create a selection backed by a live
+  // HTMLCollection or NodeList. However, note that selection.selectAll will use a
+  // static NodeList as a group, since it safely derived from querySelectorAll.
   function array$2(x) {
-    return typeof x === "object" && "length" in x
-      ? x // Array, TypedArray, NodeList, array-like
-      : Array.from(x); // Map, Set, iterable, string, or anything else
+    return x == null ? [] : Array.isArray(x) ? x : Array.from(x);
   }
 
   function empty$1() {
@@ -390,8 +333,7 @@ var chart = (function (exports) {
 
   function arrayAll$1(select) {
     return function() {
-      var group = select.apply(this, arguments);
-      return group == null ? [] : array$2(group);
+      return array$2(select.apply(this, arguments));
     };
   }
 
@@ -443,7 +385,7 @@ var chart = (function (exports) {
   var filter$1 = Array.prototype.filter;
 
   function children$1() {
-    return this.children;
+    return Array.from(this.children);
   }
 
   function childrenFilter$1(match) {
@@ -588,7 +530,7 @@ var chart = (function (exports) {
       var parent = parents[j],
           group = groups[j],
           groupLength = group.length,
-          data = array$2(value.call(parent, parent && parent.__data__, j, parents)),
+          data = arraylike(value.call(parent, parent && parent.__data__, j, parents)),
           dataLength = data.length,
           enterGroup = enter[j] = new Array(dataLength),
           updateGroup = update[j] = new Array(dataLength),
@@ -614,20 +556,40 @@ var chart = (function (exports) {
     return update;
   }
 
+  // Given some data, this returns an array-like view of it: an object that
+  // exposes a length property and allows numeric indexing. Note that unlike
+  // selectAll, this isn’t worried about “live” collections because the resulting
+  // array will only be used briefly while data is being bound. (It is possible to
+  // cause the data to change while iterating by using a key function, but please
+  // don’t; we’d rather avoid a gratuitous copy.)
+  function arraylike(data) {
+    return typeof data === "object" && "length" in data
+      ? data // Array, TypedArray, NodeList, array-like
+      : Array.from(data); // Map, Set, iterable, string, or anything else
+  }
+
   function selection_exit$1() {
     return new Selection$1(this._exit || this._groups.map(sparse$1), this._parents);
   }
 
   function selection_join$1(onenter, onupdate, onexit) {
     var enter = this.enter(), update = this, exit = this.exit();
-    enter = typeof onenter === "function" ? onenter(enter) : enter.append(onenter + "");
-    if (onupdate != null) update = onupdate(update);
+    if (typeof onenter === "function") {
+      enter = onenter(enter);
+      if (enter) enter = enter.selection();
+    } else {
+      enter = enter.append(onenter + "");
+    }
+    if (onupdate != null) {
+      update = onupdate(update);
+      if (update) update = update.selection();
+    }
     if (onexit == null) exit.remove(); else onexit(exit);
     return enter && update ? enter.merge(update).order() : update;
   }
 
-  function selection_merge$1(selection) {
-    if (!(selection instanceof Selection$1)) throw new Error("invalid merge");
+  function selection_merge$1(context) {
+    var selection = context.selection ? context.selection() : context;
 
     for (var groups0 = this._groups, groups1 = selection._groups, m0 = groups0.length, m1 = groups1.length, m = Math.min(m0, m1), merges = new Array(m0), j = 0; j < m; ++j) {
       for (var group0 = groups0[j], group1 = groups1[j], n = group0.length, merge = merges[j] = new Array(n), node, i = 0; i < n; ++i) {
@@ -659,7 +621,7 @@ var chart = (function (exports) {
   }
 
   function selection_sort$1(compare) {
-    if (!compare) compare = ascending$1;
+    if (!compare) compare = ascending$2;
 
     function compareNode(a, b) {
       return a && b ? compare(a.__data__, b.__data__) : !a - !b;
@@ -677,7 +639,7 @@ var chart = (function (exports) {
     return new Selection$1(sortgroups, this._parents).order();
   }
 
-  function ascending$1(a, b) {
+  function ascending$2(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
@@ -1235,7 +1197,119 @@ var chart = (function (exports) {
   function selectAll$1(selector) {
     return typeof selector === "string"
         ? new Selection$1([document.querySelectorAll(selector)], [document.documentElement])
-        : new Selection$1([selector == null ? [] : array$2(selector)], root$1);
+        : new Selection$1([array$2(selector)], root$1);
+  }
+
+  function ascending$1(a, b) {
+    return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
+  }
+
+  function bisector(f) {
+    let delta = f;
+    let compare = f;
+
+    if (f.length === 1) {
+      delta = (d, x) => f(d) - x;
+      compare = ascendingComparator(f);
+    }
+
+    function left(a, x, lo, hi) {
+      if (lo == null) lo = 0;
+      if (hi == null) hi = a.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (compare(a[mid], x) < 0) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    }
+
+    function right(a, x, lo, hi) {
+      if (lo == null) lo = 0;
+      if (hi == null) hi = a.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (compare(a[mid], x) > 0) hi = mid;
+        else lo = mid + 1;
+      }
+      return lo;
+    }
+
+    function center(a, x, lo, hi) {
+      if (lo == null) lo = 0;
+      if (hi == null) hi = a.length;
+      const i = left(a, x, lo, hi - 1);
+      return i > lo && delta(a[i - 1], x) > -delta(a[i], x) ? i - 1 : i;
+    }
+
+    return {left, center, right};
+  }
+
+  function ascendingComparator(f) {
+    return (d, x) => ascending$1(f(d), x);
+  }
+
+  function number$2(x) {
+    return x === null ? NaN : +x;
+  }
+
+  const ascendingBisect = bisector(ascending$1);
+  const bisectRight = ascendingBisect.right;
+  bisector(number$2).center;
+
+  var e10 = Math.sqrt(50),
+      e5 = Math.sqrt(10),
+      e2 = Math.sqrt(2);
+
+  function ticks(start, stop, count) {
+    var reverse,
+        i = -1,
+        n,
+        ticks,
+        step;
+
+    stop = +stop, start = +start, count = +count;
+    if (start === stop && count > 0) return [start];
+    if (reverse = stop < start) n = start, start = stop, stop = n;
+    if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
+
+    if (step > 0) {
+      let r0 = Math.round(start / step), r1 = Math.round(stop / step);
+      if (r0 * step < start) ++r0;
+      if (r1 * step > stop) --r1;
+      ticks = new Array(n = r1 - r0 + 1);
+      while (++i < n) ticks[i] = (r0 + i) * step;
+    } else {
+      step = -step;
+      let r0 = Math.round(start * step), r1 = Math.round(stop * step);
+      if (r0 / step < start) ++r0;
+      if (r1 / step > stop) --r1;
+      ticks = new Array(n = r1 - r0 + 1);
+      while (++i < n) ticks[i] = (r0 + i) / step;
+    }
+
+    if (reverse) ticks.reverse();
+
+    return ticks;
+  }
+
+  function tickIncrement(start, stop, count) {
+    var step = (stop - start) / Math.max(0, count),
+        power = Math.floor(Math.log(step) / Math.LN10),
+        error = step / Math.pow(10, power);
+    return power >= 0
+        ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
+        : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
+  }
+
+  function tickStep(start, stop, count) {
+    var step0 = Math.abs(stop - start) / Math.max(0, count),
+        step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
+        error = step0 / step1;
+    if (error >= e10) step1 *= 10;
+    else if (error >= e5) step1 *= 5;
+    else if (error >= e2) step1 *= 2;
+    return stop < start ? -step1 : step1;
   }
 
   function initRange$1(domain, range) {
@@ -3380,9 +3454,6 @@ var chart = (function (exports) {
   function defaultLocale(definition) {
     locale = formatLocale(definition);
     timeFormat = locale.format;
-    locale.parse;
-    locale.utcFormat;
-    locale.utcParse;
     return locale;
   }
 
@@ -3615,7 +3686,7 @@ var chart = (function (exports) {
       x = +x, y = +y;
       switch (this._point) {
         case 0: this._point = 1; this._line ? this._context.lineTo(x, y) : this._context.moveTo(x, y); break;
-        case 1: this._point = 2; // proceed
+        case 1: this._point = 2; // falls through
         default: this._context.lineTo(x, y); break;
       }
     }
@@ -4834,6 +4905,69 @@ var chart = (function (exports) {
 
   var schemePaired = colors("a6cee31f78b4b2df8a33a02cfb9a99e31a1cfdbf6fff7f00cab2d66a3d9affff99b15928");
 
+  class Basechart {
+      constructor(options) {
+          this.container = document.querySelector("body");
+          this.h = 200;
+          this.id = "basechart";
+          this.locale = "en-GB";
+          this.margin = { bottom: 20, left: 20, right: 30, top: 20 };
+          this.rh = 160;
+          this.rw = 150;
+          this.scale = {};
+          this.w = 200;
+          if (options.margin !== undefined) {
+              let m = options.margin;
+              m.left = isNaN(m.left) ? 0 : m.left;
+              m.right = isNaN(m.right) ? 0 : m.right;
+              m.top = isNaN(m.top) ? 0 : m.top;
+              m.bottom = isNaN(m.bottom) ? 0 : m.bottom;
+              this.margin = m;
+          }
+          if (options.locale !== undefined) {
+              this.locale = options.locale;
+          }
+          if (options.container !== undefined) {
+              this.container = options.container;
+          }
+          const box = this.container.getBoundingClientRect();
+          this.h = box.height;
+          this.w = box.width;
+          this.rh = this.h - this.margin.top - this.margin.bottom;
+          this.rw = this.w - this.margin.left - this.margin.right;
+          this.scale.color = ordinal(schemePaired);
+          this.scale.x = (x) => x;
+          this.scale.y = (y) => y;
+      }
+      /**
+       * Clears selection from chart
+       */
+      clearSelection() {
+          selectAll(".selected").classed("selected", false);
+          selectAll(".fade").classed("fade", false);
+      }
+      /**
+       * Removes this chart from the DOM
+       */
+      destroy() {
+          select(this.container).select("svg").remove();
+          return this;
+      }
+      draw() {
+          if (select(this.container).select("svg").empty()) {
+              let sg = svg(this.container, {
+                  height: this.h,
+                  margin: this.margin,
+                  width: this.w
+              });
+              const s = select(sg)
+                  .on("click", () => this.clearSelection());
+              this.canvas = s.select(".canvas");
+          }
+          return this;
+      }
+  }
+
   var resizeObservers = [];
 
   var hasActiveObservations = function () {
@@ -4867,6 +5001,17 @@ var chart = (function (exports) {
       ResizeObserverBoxOptions["DEVICE_PIXEL_CONTENT_BOX"] = "device-pixel-content-box";
   })(ResizeObserverBoxOptions || (ResizeObserverBoxOptions = {}));
 
+  var freeze = function (obj) { return Object.freeze(obj); };
+
+  var ResizeObserverSize = (function () {
+      function ResizeObserverSize(inlineSize, blockSize) {
+          this.inlineSize = inlineSize;
+          this.blockSize = blockSize;
+          freeze(this);
+      }
+      return ResizeObserverSize;
+  }());
+
   var DOMRectReadOnly = (function () {
       function DOMRectReadOnly(x, y, width, height) {
           this.x = x;
@@ -4877,7 +5022,7 @@ var chart = (function (exports) {
           this.left = this.x;
           this.bottom = this.top + this.height;
           this.right = this.left + this.width;
-          return Object.freeze(this);
+          return freeze(this);
       }
       DOMRectReadOnly.prototype.toJSON = function () {
           var _a = this, x = _a.x, y = _a.y, top = _a.top, right = _a.right, bottom = _a.bottom, left = _a.left, width = _a.width, height = _a.height;
@@ -4932,12 +5077,9 @@ var chart = (function (exports) {
       if (inlineSize === void 0) { inlineSize = 0; }
       if (blockSize === void 0) { blockSize = 0; }
       if (switchSizes === void 0) { switchSizes = false; }
-      return Object.freeze({
-          inlineSize: (switchSizes ? blockSize : inlineSize) || 0,
-          blockSize: (switchSizes ? inlineSize : blockSize) || 0
-      });
+      return new ResizeObserverSize((switchSizes ? blockSize : inlineSize) || 0, (switchSizes ? inlineSize : blockSize) || 0);
   };
-  var zeroBoxes = Object.freeze({
+  var zeroBoxes = freeze({
       devicePixelContentBoxSize: size(),
       borderBoxSize: size(),
       contentBoxSize: size(),
@@ -4978,7 +5120,7 @@ var chart = (function (exports) {
       var contentHeight = svg ? svg.height : parseDimension(cs.height) - heightReduction - horizontalScrollbarThickness;
       var borderBoxWidth = contentWidth + horizontalPadding + verticalScrollbarThickness + horizontalBorderArea;
       var borderBoxHeight = contentHeight + verticalPadding + horizontalScrollbarThickness + verticalBorderArea;
-      var boxes = Object.freeze({
+      var boxes = freeze({
           devicePixelContentBoxSize: size(Math.round(contentWidth * devicePixelRatio), Math.round(contentHeight * devicePixelRatio), switchSizes),
           borderBoxSize: size(borderBoxWidth, borderBoxHeight, switchSizes),
           contentBoxSize: size(contentWidth, contentHeight, switchSizes),
@@ -5004,9 +5146,9 @@ var chart = (function (exports) {
           var boxes = calculateBoxSizes(target);
           this.target = target;
           this.contentRect = boxes.contentRect;
-          this.borderBoxSize = [boxes.borderBoxSize];
-          this.contentBoxSize = [boxes.contentBoxSize];
-          this.devicePixelContentBoxSize = [boxes.devicePixelContentBoxSize];
+          this.borderBoxSize = freeze([boxes.borderBoxSize]);
+          this.contentBoxSize = freeze([boxes.contentBoxSize]);
+          this.devicePixelContentBoxSize = freeze([boxes.devicePixelContentBoxSize]);
       }
       return ResizeObserverEntry;
   }());
@@ -5387,69 +5529,6 @@ var chart = (function (exports) {
       return svg;
   }
 
-  class Basechart {
-      constructor(options) {
-          this.container = document.querySelector("body");
-          this.h = 200;
-          this.id = "basechart";
-          this.locale = "en-GB";
-          this.margin = { bottom: 20, left: 20, right: 30, top: 20 };
-          this.rh = 160;
-          this.rw = 150;
-          this.scale = {};
-          this.w = 200;
-          if (options.margin !== undefined) {
-              let m = options.margin;
-              m.left = isNaN(m.left) ? 0 : m.left;
-              m.right = isNaN(m.right) ? 0 : m.right;
-              m.top = isNaN(m.top) ? 0 : m.top;
-              m.bottom = isNaN(m.bottom) ? 0 : m.bottom;
-              this.margin = m;
-          }
-          if (options.locale !== undefined) {
-              this.locale = options.locale;
-          }
-          if (options.container !== undefined) {
-              this.container = options.container;
-          }
-          const box = this.container.getBoundingClientRect();
-          this.h = box.height;
-          this.w = box.width;
-          this.rh = this.h - this.margin.top - this.margin.bottom;
-          this.rw = this.w - this.margin.left - this.margin.right;
-          this.scale.color = ordinal(schemePaired);
-          this.scale.x = (x) => x;
-          this.scale.y = (y) => y;
-      }
-      /**
-       * Clears selection from chart
-       */
-      clearSelection() {
-          selectAll(".selected").classed("selected", false);
-          selectAll(".fade").classed("fade", false);
-      }
-      /**
-       * Removes this chart from the DOM
-       */
-      destroy() {
-          select(this.container).select("svg").remove();
-          return this;
-      }
-      draw() {
-          if (select(this.container).select("svg").empty()) {
-              let sg = svg(this.container, {
-                  height: this.h,
-                  margin: this.margin,
-                  width: this.w
-              });
-              const s = select(sg)
-                  .on("click", () => this.clearSelection());
-              this.canvas = s.select(".canvas");
-          }
-          return this;
-      }
-  }
-
   class Streamchart extends Basechart {
       constructor(options) {
           super(options);
@@ -5657,7 +5736,7 @@ var chart = (function (exports) {
               return;
           }
           const dates = this._data.series.map(s => [s.period, s.sum]);
-          const bisect = bisector((d) => d[0]);
+          const bisect = bisector$1((d) => d[0]);
           let m = bisect.left(dates, mouseDate);
           if (m === 0) {
               m = 1;
