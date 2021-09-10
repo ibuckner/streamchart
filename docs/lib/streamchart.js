@@ -1,48 +1,46 @@
 var chart = (function (exports) {
   'use strict';
 
-  function ascending$3(a, b) {
-    return a == null || b == null ? NaN
-      : a < b ? -1
-      : a > b ? 1
-      : a >= b ? 0
-      : NaN;
+  function ascending$2(a, b) {
+    return a == null || b == null ? NaN : a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
-  function bisector$1(f) {
+  function bisector(f) {
     let delta = f;
-    let compare = f;
+    let compare1 = f;
+    let compare2 = f;
 
     if (f.length === 1) {
       delta = (d, x) => f(d) - x;
-      compare = ascendingComparator$1(f);
+      compare1 = ascending$2;
+      compare2 = (d, x) => ascending$2(f(d), x);
     }
 
-    function left(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if (compare(a[mid], x) < 0) lo = mid + 1;
-        else hi = mid;
+    function left(a, x, lo = 0, hi = a.length) {
+      if (lo < hi) {
+        if (compare1(x, x) !== 0) return hi;
+        do {
+          const mid = (lo + hi) >>> 1;
+          if (compare2(a[mid], x) < 0) lo = mid + 1;
+          else hi = mid;
+        } while (lo < hi);
       }
       return lo;
     }
 
-    function right(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if (compare(a[mid], x) > 0) hi = mid;
-        else lo = mid + 1;
+    function right(a, x, lo = 0, hi = a.length) {
+      if (lo < hi) {
+        if (compare1(x, x) !== 0) return hi;
+        do {
+          const mid = (lo + hi) >>> 1;
+          if (compare2(a[mid], x) <= 0) lo = mid + 1;
+          else hi = mid;
+        } while (lo < hi);
       }
       return lo;
     }
 
-    function center(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
+    function center(a, x, lo = 0, hi = a.length) {
       const i = left(a, x, lo, hi - 1);
       return i > lo && delta(a[i - 1], x) > -delta(a[i], x) ? i - 1 : i;
     }
@@ -50,9 +48,14 @@ var chart = (function (exports) {
     return {left, center, right};
   }
 
-  function ascendingComparator$1(f) {
-    return (d, x) => ascending$3(f(d), x);
+  function number$3(x) {
+    return x === null ? NaN : +x;
   }
+
+  const ascendingBisect = bisector(ascending$2);
+  const bisectRight = ascendingBisect.right;
+  bisector(number$3).center;
+  var bisect = bisectRight;
 
   function extent(values, valueof) {
     let min;
@@ -84,6 +87,61 @@ var chart = (function (exports) {
     return [min, max];
   }
 
+  var e10 = Math.sqrt(50),
+      e5 = Math.sqrt(10),
+      e2 = Math.sqrt(2);
+
+  function ticks(start, stop, count) {
+    var reverse,
+        i = -1,
+        n,
+        ticks,
+        step;
+
+    stop = +stop, start = +start, count = +count;
+    if (start === stop && count > 0) return [start];
+    if (reverse = stop < start) n = start, start = stop, stop = n;
+    if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
+
+    if (step > 0) {
+      let r0 = Math.round(start / step), r1 = Math.round(stop / step);
+      if (r0 * step < start) ++r0;
+      if (r1 * step > stop) --r1;
+      ticks = new Array(n = r1 - r0 + 1);
+      while (++i < n) ticks[i] = (r0 + i) * step;
+    } else {
+      step = -step;
+      let r0 = Math.round(start * step), r1 = Math.round(stop * step);
+      if (r0 / step < start) ++r0;
+      if (r1 / step > stop) --r1;
+      ticks = new Array(n = r1 - r0 + 1);
+      while (++i < n) ticks[i] = (r0 + i) / step;
+    }
+
+    if (reverse) ticks.reverse();
+
+    return ticks;
+  }
+
+  function tickIncrement(start, stop, count) {
+    var step = (stop - start) / Math.max(0, count),
+        power = Math.floor(Math.log(step) / Math.LN10),
+        error = step / Math.pow(10, power);
+    return power >= 0
+        ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
+        : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
+  }
+
+  function tickStep(start, stop, count) {
+    var step0 = Math.abs(stop - start) / Math.max(0, count),
+        step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
+        error = step0 / step1;
+    if (error >= e10) step1 *= 10;
+    else if (error >= e5) step1 *= 5;
+    else if (error >= e2) step1 *= 2;
+    return stop < start ? -step1 : step1;
+  }
+
   function identity$2(x) {
     return x;
   }
@@ -102,7 +160,7 @@ var chart = (function (exports) {
     return "translate(0," + y + ")";
   }
 
-  function number$3(scale) {
+  function number$2(scale) {
     return d => +scale(d);
   }
 
@@ -135,7 +193,7 @@ var chart = (function (exports) {
           range = scale.range(),
           range0 = +range[0] + offset,
           range1 = +range[range.length - 1] + offset,
-          position = (scale.bandwidth ? center : number$3)(scale.copy(), offset),
+          position = (scale.bandwidth ? center : number$2)(scale.copy(), offset),
           selection = context.selection ? context.selection() : context,
           path = selection.selectAll(".domain").data([null]),
           tick = selection.selectAll(".tick").data(values, scale).order(),
@@ -621,7 +679,7 @@ var chart = (function (exports) {
   }
 
   function selection_sort$1(compare) {
-    if (!compare) compare = ascending$2;
+    if (!compare) compare = ascending$1;
 
     function compareNode(a, b) {
       return a && b ? compare(a.__data__, b.__data__) : !a - !b;
@@ -639,7 +697,7 @@ var chart = (function (exports) {
     return new Selection$1(sortgroups, this._parents).order();
   }
 
-  function ascending$2(a, b) {
+  function ascending$1(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
@@ -1198,118 +1256,6 @@ var chart = (function (exports) {
     return typeof selector === "string"
         ? new Selection$1([document.querySelectorAll(selector)], [document.documentElement])
         : new Selection$1([array$2(selector)], root$1);
-  }
-
-  function ascending$1(a, b) {
-    return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
-  }
-
-  function bisector(f) {
-    let delta = f;
-    let compare = f;
-
-    if (f.length === 1) {
-      delta = (d, x) => f(d) - x;
-      compare = ascendingComparator(f);
-    }
-
-    function left(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if (compare(a[mid], x) < 0) lo = mid + 1;
-        else hi = mid;
-      }
-      return lo;
-    }
-
-    function right(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if (compare(a[mid], x) > 0) hi = mid;
-        else lo = mid + 1;
-      }
-      return lo;
-    }
-
-    function center(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      const i = left(a, x, lo, hi - 1);
-      return i > lo && delta(a[i - 1], x) > -delta(a[i], x) ? i - 1 : i;
-    }
-
-    return {left, center, right};
-  }
-
-  function ascendingComparator(f) {
-    return (d, x) => ascending$1(f(d), x);
-  }
-
-  function number$2(x) {
-    return x === null ? NaN : +x;
-  }
-
-  const ascendingBisect = bisector(ascending$1);
-  const bisectRight = ascendingBisect.right;
-  bisector(number$2).center;
-
-  var e10 = Math.sqrt(50),
-      e5 = Math.sqrt(10),
-      e2 = Math.sqrt(2);
-
-  function ticks(start, stop, count) {
-    var reverse,
-        i = -1,
-        n,
-        ticks,
-        step;
-
-    stop = +stop, start = +start, count = +count;
-    if (start === stop && count > 0) return [start];
-    if (reverse = stop < start) n = start, start = stop, stop = n;
-    if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
-
-    if (step > 0) {
-      let r0 = Math.round(start / step), r1 = Math.round(stop / step);
-      if (r0 * step < start) ++r0;
-      if (r1 * step > stop) --r1;
-      ticks = new Array(n = r1 - r0 + 1);
-      while (++i < n) ticks[i] = (r0 + i) * step;
-    } else {
-      step = -step;
-      let r0 = Math.round(start * step), r1 = Math.round(stop * step);
-      if (r0 / step < start) ++r0;
-      if (r1 / step > stop) --r1;
-      ticks = new Array(n = r1 - r0 + 1);
-      while (++i < n) ticks[i] = (r0 + i) / step;
-    }
-
-    if (reverse) ticks.reverse();
-
-    return ticks;
-  }
-
-  function tickIncrement(start, stop, count) {
-    var step = (stop - start) / Math.max(0, count),
-        power = Math.floor(Math.log(step) / Math.LN10),
-        error = step / Math.pow(10, power);
-    return power >= 0
-        ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
-        : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
-  }
-
-  function tickStep(start, stop, count) {
-    var step0 = Math.abs(stop - start) / Math.max(0, count),
-        step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
-        error = step0 / step1;
-    if (error >= e10) step1 *= 10;
-    else if (error >= e5) step1 *= 5;
-    else if (error >= e2) step1 *= 2;
-    return stop < start ? -step1 : step1;
   }
 
   function initRange$1(domain, range) {
@@ -1952,7 +1898,7 @@ var chart = (function (exports) {
     }
 
     return function(x) {
-      var i = bisectRight(domain, x, 1, j) - 1;
+      var i = bisect(domain, x, 1, j) - 1;
       return r[i](d[i](x));
     };
   }
@@ -2560,6 +2506,8 @@ var chart = (function (exports) {
     });
   };
 
+  var millisecond$1 = millisecond;
+
   const durationSecond = 1000;
   const durationMinute = durationSecond * 60;
   const durationHour = durationMinute * 60;
@@ -2578,6 +2526,8 @@ var chart = (function (exports) {
     return date.getUTCSeconds();
   });
 
+  var utcSecond = second;
+
   var minute = newInterval(function(date) {
     date.setTime(date - date.getMilliseconds() - date.getSeconds() * durationSecond);
   }, function(date, step) {
@@ -2587,6 +2537,8 @@ var chart = (function (exports) {
   }, function(date) {
     return date.getMinutes();
   });
+
+  var timeMinute = minute;
 
   var hour = newInterval(function(date) {
     date.setTime(date - date.getMilliseconds() - date.getSeconds() * durationSecond - date.getMinutes() * durationMinute);
@@ -2598,12 +2550,16 @@ var chart = (function (exports) {
     return date.getHours();
   });
 
+  var timeHour = hour;
+
   var day = newInterval(
     date => date.setHours(0, 0, 0, 0),
     (date, step) => date.setDate(date.getDate() + step),
     (start, end) => (end - start - (end.getTimezoneOffset() - start.getTimezoneOffset()) * durationMinute) / durationDay,
     date => date.getDate() - 1
   );
+
+  var timeDay = day;
 
   function weekday(i) {
     return newInterval(function(date) {
@@ -2635,6 +2591,8 @@ var chart = (function (exports) {
     return date.getMonth();
   });
 
+  var timeMonth = month;
+
   var year = newInterval(function(date) {
     date.setMonth(0, 1);
     date.setHours(0, 0, 0, 0);
@@ -2657,6 +2615,32 @@ var chart = (function (exports) {
     });
   };
 
+  var timeYear = year;
+
+  var utcMinute = newInterval(function(date) {
+    date.setUTCSeconds(0, 0);
+  }, function(date, step) {
+    date.setTime(+date + step * durationMinute);
+  }, function(start, end) {
+    return (end - start) / durationMinute;
+  }, function(date) {
+    return date.getUTCMinutes();
+  });
+
+  var utcMinute$1 = utcMinute;
+
+  var utcHour = newInterval(function(date) {
+    date.setUTCMinutes(0, 0, 0);
+  }, function(date, step) {
+    date.setTime(+date + step * durationHour);
+  }, function(start, end) {
+    return (end - start) / durationHour;
+  }, function(date) {
+    return date.getUTCHours();
+  });
+
+  var utcHour$1 = utcHour;
+
   var utcDay = newInterval(function(date) {
     date.setUTCHours(0, 0, 0, 0);
   }, function(date, step) {
@@ -2666,6 +2650,8 @@ var chart = (function (exports) {
   }, function(date) {
     return date.getUTCDate() - 1;
   });
+
+  var utcDay$1 = utcDay;
 
   function utcWeekday(i) {
     return newInterval(function(date) {
@@ -2685,6 +2671,19 @@ var chart = (function (exports) {
   var utcThursday = utcWeekday(4);
   utcWeekday(5);
   utcWeekday(6);
+
+  var utcMonth = newInterval(function(date) {
+    date.setUTCDate(1);
+    date.setUTCHours(0, 0, 0, 0);
+  }, function(date, step) {
+    date.setUTCMonth(date.getUTCMonth() + step);
+  }, function(start, end) {
+    return end.getUTCMonth() - start.getUTCMonth() + (end.getUTCFullYear() - start.getUTCFullYear()) * 12;
+  }, function(date) {
+    return date.getUTCMonth();
+  });
+
+  var utcMonth$1 = utcMonth;
 
   var utcYear = newInterval(function(date) {
     date.setUTCMonth(0, 1);
@@ -2708,13 +2707,15 @@ var chart = (function (exports) {
     });
   };
 
+  var utcYear$1 = utcYear;
+
   function ticker(year, month, week, day, hour, minute) {
 
     const tickIntervals = [
-      [second,  1,      durationSecond],
-      [second,  5,  5 * durationSecond],
-      [second, 15, 15 * durationSecond],
-      [second, 30, 30 * durationSecond],
+      [utcSecond,  1,      durationSecond],
+      [utcSecond,  5,  5 * durationSecond],
+      [utcSecond, 15, 15 * durationSecond],
+      [utcSecond, 30, 30 * durationSecond],
       [minute,  1,      durationMinute],
       [minute,  5,  5 * durationMinute],
       [minute, 15, 15 * durationMinute],
@@ -2743,14 +2744,16 @@ var chart = (function (exports) {
       const target = Math.abs(stop - start) / count;
       const i = bisector(([,, step]) => step).right(tickIntervals, target);
       if (i === tickIntervals.length) return year.every(tickStep(start / durationYear, stop / durationYear, count));
-      if (i === 0) return millisecond.every(Math.max(tickStep(start, stop, count), 1));
+      if (i === 0) return millisecond$1.every(Math.max(tickStep(start, stop, count), 1));
       const [t, step] = tickIntervals[target / tickIntervals[i - 1][2] < tickIntervals[i][2] / target ? i - 1 : i];
       return t.every(step);
     }
 
     return [ticks, tickInterval];
   }
-  const [timeTicks, timeTickInterval] = ticker(year, month, sunday, day, hour, minute);
+
+  ticker(utcYear$1, utcMonth$1, utcSunday, utcDay$1, utcHour$1, utcMinute$1);
+  const [timeTicks, timeTickInterval] = ticker(timeYear, timeMonth, sunday, timeDay, timeHour, timeMinute);
 
   function localDate(d) {
     if (0 <= d.y && d.y < 100) {
@@ -2940,7 +2943,7 @@ var chart = (function (exports) {
       return function(string) {
         var d = newDate(1900, undefined, 1),
             i = parseSpecifier(d, specifier, string += "", 0),
-            week, day$1;
+            week, day;
         if (i != string.length) return null;
 
         // If a UNIX timestamp is specified, return it.
@@ -2961,25 +2964,25 @@ var chart = (function (exports) {
           if (d.V < 1 || d.V > 53) return null;
           if (!("w" in d)) d.w = 1;
           if ("Z" in d) {
-            week = utcDate(newDate(d.y, 0, 1)), day$1 = week.getUTCDay();
-            week = day$1 > 4 || day$1 === 0 ? utcMonday.ceil(week) : utcMonday(week);
-            week = utcDay.offset(week, (d.V - 1) * 7);
+            week = utcDate(newDate(d.y, 0, 1)), day = week.getUTCDay();
+            week = day > 4 || day === 0 ? utcMonday.ceil(week) : utcMonday(week);
+            week = utcDay$1.offset(week, (d.V - 1) * 7);
             d.y = week.getUTCFullYear();
             d.m = week.getUTCMonth();
             d.d = week.getUTCDate() + (d.w + 6) % 7;
           } else {
-            week = localDate(newDate(d.y, 0, 1)), day$1 = week.getDay();
-            week = day$1 > 4 || day$1 === 0 ? monday.ceil(week) : monday(week);
-            week = day.offset(week, (d.V - 1) * 7);
+            week = localDate(newDate(d.y, 0, 1)), day = week.getDay();
+            week = day > 4 || day === 0 ? monday.ceil(week) : monday(week);
+            week = timeDay.offset(week, (d.V - 1) * 7);
             d.y = week.getFullYear();
             d.m = week.getMonth();
             d.d = week.getDate() + (d.w + 6) % 7;
           }
         } else if ("W" in d || "U" in d) {
           if (!("w" in d)) d.w = "u" in d ? d.u % 7 : "W" in d ? 1 : 0;
-          day$1 = "Z" in d ? utcDate(newDate(d.y, 0, 1)).getUTCDay() : localDate(newDate(d.y, 0, 1)).getDay();
+          day = "Z" in d ? utcDate(newDate(d.y, 0, 1)).getUTCDay() : localDate(newDate(d.y, 0, 1)).getDay();
           d.m = 0;
-          d.d = "W" in d ? (d.w + 6) % 7 + d.W * 7 - (day$1 + 5) % 7 : d.w + d.U * 7 - (day$1 + 6) % 7;
+          d.d = "W" in d ? (d.w + 6) % 7 + d.W * 7 - (day + 5) % 7 : d.w + d.U * 7 - (day + 6) % 7;
         }
 
         // If a time zone is specified, all fields are interpreted as UTC and then
@@ -3263,7 +3266,7 @@ var chart = (function (exports) {
   }
 
   function formatDayOfYear(d, p) {
-    return pad(1 + day.count(year(d), d), p, 3);
+    return pad(1 + timeDay.count(timeYear(d), d), p, 3);
   }
 
   function formatMilliseconds(d, p) {
@@ -3292,7 +3295,7 @@ var chart = (function (exports) {
   }
 
   function formatWeekNumberSunday(d, p) {
-    return pad(sunday.count(year(d) - 1, d), p, 2);
+    return pad(sunday.count(timeYear(d) - 1, d), p, 2);
   }
 
   function dISO(d) {
@@ -3302,7 +3305,7 @@ var chart = (function (exports) {
 
   function formatWeekNumberISO(d, p) {
     d = dISO(d);
-    return pad(thursday.count(year(d), d) + (year(d).getDay() === 4), p, 2);
+    return pad(thursday.count(timeYear(d), d) + (timeYear(d).getDay() === 4), p, 2);
   }
 
   function formatWeekdayNumberSunday(d) {
@@ -3310,7 +3313,7 @@ var chart = (function (exports) {
   }
 
   function formatWeekNumberMonday(d, p) {
-    return pad(monday.count(year(d) - 1, d), p, 2);
+    return pad(monday.count(timeYear(d) - 1, d), p, 2);
   }
 
   function formatYear(d, p) {
@@ -3352,7 +3355,7 @@ var chart = (function (exports) {
   }
 
   function formatUTCDayOfYear(d, p) {
-    return pad(1 + utcDay.count(utcYear(d), d), p, 3);
+    return pad(1 + utcDay$1.count(utcYear$1(d), d), p, 3);
   }
 
   function formatUTCMilliseconds(d, p) {
@@ -3381,7 +3384,7 @@ var chart = (function (exports) {
   }
 
   function formatUTCWeekNumberSunday(d, p) {
-    return pad(utcSunday.count(utcYear(d) - 1, d), p, 2);
+    return pad(utcSunday.count(utcYear$1(d) - 1, d), p, 2);
   }
 
   function UTCdISO(d) {
@@ -3391,7 +3394,7 @@ var chart = (function (exports) {
 
   function formatUTCWeekNumberISO(d, p) {
     d = UTCdISO(d);
-    return pad(utcThursday.count(utcYear(d), d) + (utcYear(d).getUTCDay() === 4), p, 2);
+    return pad(utcThursday.count(utcYear$1(d), d) + (utcYear$1(d).getUTCDay() === 4), p, 2);
   }
 
   function formatUTCWeekdayNumberSunday(d) {
@@ -3399,7 +3402,7 @@ var chart = (function (exports) {
   }
 
   function formatUTCWeekNumberMonday(d, p) {
-    return pad(utcMonday.count(utcYear(d) - 1, d), p, 2);
+    return pad(utcMonday.count(utcYear$1(d) - 1, d), p, 2);
   }
 
   function formatUTCYear(d, p) {
@@ -3520,7 +3523,7 @@ var chart = (function (exports) {
   }
 
   function time$1() {
-    return initRange$1.apply(calendar(timeTicks, timeTickInterval, year, month, sunday, day, hour, minute, second, timeFormat).domain([new Date(2000, 0, 1), new Date(2000, 0, 2)]), arguments);
+    return initRange$1.apply(calendar(timeTicks, timeTickInterval, timeYear, timeMonth, sunday, timeDay, timeHour, timeMinute, utcSecond, timeFormat).domain([new Date(2000, 0, 1), new Date(2000, 0, 2)]), arguments);
   }
 
   const pi = Math.PI,
@@ -5736,7 +5739,7 @@ var chart = (function (exports) {
               return;
           }
           const dates = this._data.series.map(s => [s.period, s.sum]);
-          const bisect = bisector$1((d) => d[0]);
+          const bisect = bisector((d) => d[0]);
           let m = bisect.left(dates, mouseDate);
           if (m === 0) {
               m = 1;
